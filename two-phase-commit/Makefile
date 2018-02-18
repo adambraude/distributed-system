@@ -20,4 +20,4 @@ $(SLV): $(SLAVE_OBJ) tpc.h vote.h
 	gcc -o $(SLV) $(SLAVE_OBJ)
 
 clean:
-	rm tpc_clnt.c tpc_svc.c tpc_xdr.c tpc.h *.o $(MSTR) $(SLV)
+	rm tpc_clnt.c tpc_svc.c tpc_xdr.c tpc.h *.o $(MSTR) $(SLV) vectors.txt

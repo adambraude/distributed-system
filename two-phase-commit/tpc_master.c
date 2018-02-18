@@ -71,15 +71,16 @@ int main(int argc, char *argv[])
 
             if (cl == NULL) {
                 printf("Error: could not connect to slave %s.\n", args[i + 1]);
-                return NULL;
+                continue;
             }
             int *result = commit_vec_1(cargs, cl);
             printf("Result = %d\n", *result);
             if (result == NULL) {
                 printf("Commit failed.\n");
-                return NULL;
             }
-            printf("Commit succeeded.\n");
+            else {
+                printf("Commit succeeded.\n");
+            }
         }
    }
     else {
@@ -94,11 +95,11 @@ int main(int argc, char *argv[])
 
 void *get_commit_resp(void *tid)
 {
-    int i = (int)tid;
+    int i = (intptr_t)tid;
     cl_arr[i] = clnt_create(args[i + 1], TWO_PHASE_COMMIT_VOTE, TWO_PHASE_COMMIT_VOTE_V1, "tcp");
     if (cl_arr[i] == NULL) {
         printf("Error: could not connect to slave %s.\n", args[i + 1]);
-        return NULL;
+        return (void*) 1;
     }
     int *result = commit_msg_1(NULL, cl_arr[i]);
     if (result == NULL || *result == VOTE_ABORT) {
@@ -107,7 +108,7 @@ void *get_commit_resp(void *tid)
     else {
         results[i] = 1;
     }
-    return NULL;
+    return (void*) 0;
 }
 
 // FIXME breaks when put in thread, for some reason.
@@ -116,21 +117,21 @@ void *commit_bit_vector(void *arg)
     struct thread_arg* a = (struct thread_arg*)arg;
     pthread_t tid = a->tid;
     int i = (int) tid;
-    printf("about to commit %d: %llu\n", a->commit_args->vec_id, a->commit_args->vec);
+    printf("about to commit %d: %lu\n", a->commit_args->vec_id, a->commit_args->vec);
     //CLIENT* cl = clnt_create(args[i + 1], TWO_PHASE_COMMIT_VOTE, TWO_PHASE_COMMIT_VOTE_V1, "tcp");
     CLIENT* cl = clnt_create(args[i + 1], TWO_PHASE_COMMIT_VEC, TPC_COMMIT_VEC_V1, "tcp");
     //printf("Clnt create\n");
 
     if (cl == NULL) {
         printf("Error: could not connect to slave %s.\n", args[i + 1]);
-        return NULL;
+        return (void*) 1;
     }
     int *result = commit_vec_1(a->commit_args, cl);
     printf("Result = %d\n", *result);
     if (result == NULL) {
         printf("Commit failed.\n");
-        return NULL;
+        return (void*) 1;
     }
     printf("Commit succeeded.\n");
-
+    return (void*) 0;
 }

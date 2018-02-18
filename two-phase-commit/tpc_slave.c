@@ -26,6 +26,7 @@ int *commit_vec_1_svc(commit_vec_args * args, struct svc_req *req)
     char buffer[128];
     snprintf(buffer, 128, "%d: %llu", args->vec_id, args->vec);
     fwrite(buffer, sizeof(char), sizeof(buffer), fp);
+    perror("fwrite");
     fclose(fp);
     result = 0;
     return &result;

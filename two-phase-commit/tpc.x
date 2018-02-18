@@ -1,6 +1,6 @@
 struct commit_vec_args {
     unsigned int vec_id;
-    unsigned hyper vec;
+    unsigned hyper int vec;
 };
 
 program TWO_PHASE_COMMIT_VOTE {

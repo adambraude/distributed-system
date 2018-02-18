@@ -11,7 +11,13 @@ int *results;
 CLIENT **cl_arr;
 char **args;
 
-void *get_client_resp(void*);
+typedef struct thread_arg {
+    pthread_t tid;
+    commit_vec_args *commit_args;
+} thread_arg;
+
+void *get_commit_resp(void*);
+void *commit_bit_vector(void*);
 
 int main(int argc, char *argv[])
 {
@@ -30,11 +36,10 @@ int main(int argc, char *argv[])
     /* Phase 1 */
     int i;
     for (i = 0; i < num_slaves; i++) {
-        // XXX this should really be multi-threaded...
         results[i] = 0;
         cl_arr[i] = NULL;
         pthread_t tid = (pthread_t)i;
-        pthread_create(&tid, NULL, get_client_resp, (void*)tid);
+        pthread_create(&tid, NULL, get_commit_resp, (void*)tid);
     }
     sleep(1);
     int successes = 0;
@@ -48,23 +53,52 @@ int main(int argc, char *argv[])
     if (successes == num_slaves) {
         // broadcast COMMIT to all slaves
         printf("Everyone agreed to commit! Woohoo!\n");
-        return 0;
-    }
+        for (i = 0; i < num_slaves; i++) {
+            results[i] = 0;
+            cl_arr[i] = NULL;
+            pthread_t tid = (pthread_t)i;
+            struct thread_arg *targ = (struct thread_arg *)malloc(sizeof(struct thread_arg));
+            commit_vec_args *cargs = (commit_vec_args*)malloc(sizeof(commit_vec_args));
+            unsigned int vec_id = (unsigned int)i;
+            unsigned long long vec = (unsigned long long)i;
+            cargs->vec_id = vec_id;
+            cargs->vec = vec;
+            targ->tid = tid;
+            targ->commit_args = cargs;
+            //pthread_create(&tid, NULL, commit_bit_vector, (void*)targ);
+            CLIENT* cl = clnt_create(args[i + 1], TWO_PHASE_COMMIT_VEC, TPC_COMMIT_VEC_V1, "tcp");
+            //printf("Clnt create\n");
+
+            if (cl == NULL) {
+                printf("Error: could not connect to slave %s.\n", args[i + 1]);
+                return NULL;
+            }
+            int *result = commit_vec_1(cargs, cl);
+            printf("Result = %d\n", *result);
+            if (result == NULL) {
+                printf("Commit failed.\n");
+                return NULL;
+            }
+            printf("Commit succeeded.\n");
+        }
+   }
     else {
         // broadcast ABORT to all slaves
         printf("Failed to find all slaves\n");
         return 1;
     }
+    free(results);
+    free(cl_arr);
     return 0;
 }
 
-// TODO make pthread-friendly
-void *get_client_resp(void *tid)
+void *get_commit_resp(void *tid)
 {
     int i = (int)tid;
     cl_arr[i] = clnt_create(args[i + 1], TWO_PHASE_COMMIT_VOTE, TWO_PHASE_COMMIT_VOTE_V1, "tcp");
     if (cl_arr[i] == NULL) {
         printf("Error: could not connect to slave %s.\n", args[i + 1]);
+        return NULL;
     }
     int *result = commit_msg_1(NULL, cl_arr[i]);
     if (result == NULL || *result == VOTE_ABORT) {
@@ -74,4 +108,29 @@ void *get_client_resp(void *tid)
         results[i] = 1;
     }
     return NULL;
+}
+
+// FIXME breaks when put in thread, for some reason.
+void *commit_bit_vector(void *arg)
+{
+    struct thread_arg* a = (struct thread_arg*)arg;
+    pthread_t tid = a->tid;
+    int i = (int) tid;
+    printf("about to commit %d: %llu\n", a->commit_args->vec_id, a->commit_args->vec);
+    //CLIENT* cl = clnt_create(args[i + 1], TWO_PHASE_COMMIT_VOTE, TWO_PHASE_COMMIT_VOTE_V1, "tcp");
+    CLIENT* cl = clnt_create(args[i + 1], TWO_PHASE_COMMIT_VEC, TPC_COMMIT_VEC_V1, "tcp");
+    //printf("Clnt create\n");
+
+    if (cl == NULL) {
+        printf("Error: could not connect to slave %s.\n", args[i + 1]);
+        return NULL;
+    }
+    int *result = commit_vec_1(a->commit_args, cl);
+    printf("Result = %d\n", *result);
+    if (result == NULL) {
+        printf("Commit failed.\n");
+        return NULL;
+    }
+    printf("Commit succeeded.\n");
+
 }

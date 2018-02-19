@@ -30,11 +30,9 @@ int *commit_vec_1_svc(commit_vec_args *args, struct svc_req *req)
     printf("Commiting vector #%d: %llu\n", args->vec_id, args->vec);
     FILE *fp;
     fp = fopen("vectors.txt", "a");
-    perror("fopen");
     char buffer[128];
     snprintf(buffer, 128, "%d: %llu", args->vec_id, args->vec);
     fprintf(fp, "%s\n", buffer);
-    perror("fwrite");
     fclose(fp);
     result = 0;
     return &result;

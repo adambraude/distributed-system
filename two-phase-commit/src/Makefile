@@ -1,8 +1,9 @@
-MSTR = tpc_master
-SLV = tpc_slave
-CFLAGS = -g -Wall
 BIN := bin/
-OUT := out/
+
+MSTR = $(BIN)tpc_master
+SLV = $(BIN)tpc_slave
+
+CFLAGS = -g -Wall
 
 MASTER_OBJ =  $(BIN)tpc_clnt.o $(BIN)tpc_xdr.o $(BIN)tpc_master.o
 SLAVE_OBJ = $(BIN)tpc_slave.o $(BIN)tpc_xdr.o $(BIN)tpc_svc.o

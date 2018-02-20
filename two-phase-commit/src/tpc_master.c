@@ -25,12 +25,6 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    /*
-        Usage
-        -bv [id_1:vec_1] ... [id_n:vec_n]
-        -sa [slave_addr_1] ... [slave_addr_m]
-    */
-
     // argv[1..n] are the IP addresses of the slave nodes.
     int num_slaves = argc - 1;
     args = argv;
@@ -56,7 +50,7 @@ int main(int argc, char *argv[])
 
     /* Phase 2 */
     if (successes == num_slaves) {
-        // broadcast COMMIT to all slaves
+        /* broadcast COMMIT to all slaves */
         printf("Everyone agreed to commit! Woohoo!\n");
         for (i = 0; i < num_slaves; i++) {
             results[i] = 0;
@@ -70,9 +64,15 @@ int main(int argc, char *argv[])
             cargs->vec = vec;
             targ->tid = tid;
             targ->commit_args = cargs;
+
+            /*
+             * FIXME: code after pthread_create should go in thread,
+             * but it crashes for some reason.
+             */
             //pthread_create(&tid, NULL, commit_bit_vector, (void*)targ);
             CLIENT* cl = clnt_create(args[i + 1], TWO_PHASE_COMMIT_VEC, TPC_COMMIT_VEC_V1, "tcp");
-            //printf("Clnt create\n");
+
+            /* TODO: test point of failure in this loop */
 
             if (cl == NULL) {
                 printf("Error: could not connect to slave %s.\n", args[i + 1]);
@@ -89,7 +89,10 @@ int main(int argc, char *argv[])
         }
    }
     else {
-        // broadcast ABORT to all slaves
+        /* TODO: following the TPC protocol,
+         * multicast ABORT to all slaves
+         * but it's not that necessary in this case.
+         */
         printf("Failed to find all slaves\n");
         return 1;
     }
@@ -123,9 +126,7 @@ void *commit_bit_vector(void *arg)
     pthread_t tid = a->tid;
     int i = (int) tid;
     printf("about to commit %d: %lu\n", a->commit_args->vec_id, a->commit_args->vec);
-    //CLIENT* cl = clnt_create(args[i + 1], TWO_PHASE_COMMIT_VOTE, TWO_PHASE_COMMIT_VOTE_V1, "tcp");
     CLIENT* cl = clnt_create(args[i + 1], TWO_PHASE_COMMIT_VEC, TPC_COMMIT_VEC_V1, "tcp");
-    //printf("Clnt create\n");
 
     if (cl == NULL) {
         printf("Error: could not connect to slave %s.\n", args[i + 1]);

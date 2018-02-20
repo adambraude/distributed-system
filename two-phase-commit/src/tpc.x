@@ -1,3 +1,8 @@
+/*
+ * XXX: instead of being able to send just one vector at a time,
+ * send a linked list of vec_args structs
+ */
+
 struct commit_vec_args {
     unsigned int vec_id;
     unsigned hyper int vec;

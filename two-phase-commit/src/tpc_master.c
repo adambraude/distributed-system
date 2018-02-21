@@ -39,27 +39,27 @@ int main(int argc, char *argv[])
     // argv[1..n] are the IP addresses of the slave nodes.
     int num_slaves = argc - 1;
     args = argv;
-
+    pthread_t tids[num_slaves];
     results = (int *) malloc(num_slaves * sizeof(int));
     cl_arr = (CLIENT **) malloc(num_slaves * sizeof(CLIENT *));
+    //tids = (pthread_t *) malloc(num_slaves * sizeof(pthread_t));
 
     /* Phase 1 */
     int i;
     for (i = 0; i < num_slaves; i++) {
         results[i] = 0;
         cl_arr[i] = NULL;
-        pthread_t tid = (pthread_t)i;
-        pthread_create(&tid, NULL, get_commit_resp, (void *) tid);
+        pthread_create(&tids[i], NULL, get_commit_resp, (void *) i);
     }
     sleep(1);
     int successes = 0;
     // kill all threads
     for (i = 0; i < num_slaves; i++) {
         successes += results[i];
-        pthread_cancel((pthread_t) i);
+        pthread_join(tids[i], NULL);
     }
-
     /* Phase 2 */
+    printf("exited for\n");
     if (successes == num_slaves) {
         /* broadcast COMMIT to all slaves */
         printf("Everyone agreed to commit! Woohoo!\n");
@@ -123,6 +123,7 @@ void *get_commit_resp(void *tid)
         return (void*) 1;
     }
     int *result = commit_msg_1(NULL, cl_arr[i]);
+    printf("got result\n");
     if (result == NULL || *result == VOTE_ABORT) {
         printf("Couldn't commit at slave %s.\n", args[i + 1]);
     }

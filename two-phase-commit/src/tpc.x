@@ -1,5 +1,5 @@
 /*
- * XXX: instead of being able to send just one vector at a time,
+ * TODO: instead of being able to send just one vector at a time,
  * send a linked list of vec_args structs
  */
 

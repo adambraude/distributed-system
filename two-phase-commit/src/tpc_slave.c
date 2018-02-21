@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define TESTING_MASTER_DEATH 0
+#define TESTING_SLOW_PROC 0
 
 int result;
 
@@ -19,12 +19,9 @@ int *commit_msg_1_svc(void *v, struct svc_req *req)
         /* possible reasons: lack of memory, ... */
         result = VOTE_ABORT;
     }
-    if (TESTING_MASTER_DEATH) {
-       /*
-        * TODO: kill master process in a test,
-        * while it's waiting on this one!
-        */
-        // sleep(...);
+    /* make the process run slow, so that */
+    if (TESTING_SLOW_PROC) {
+        sleep(TIME_TO_VOTE + 1);
     }
     return &result;
 

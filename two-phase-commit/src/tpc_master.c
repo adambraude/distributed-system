@@ -13,6 +13,11 @@ int *results;
 CLIENT **cl_arr;
 char **args;
 
+#define TEST_MASTER_DEATH 0
+
+/* the index in the thread reaping loop at which master dies */
+#define KILL_INDEX 1
+
 typedef struct thread_arg {
     pthread_t tid;
     commit_vec_args *commit_args;
@@ -51,15 +56,18 @@ int main(int argc, char *argv[])
         cl_arr[i] = NULL;
         pthread_create(&tids[i], NULL, get_commit_resp, (void *) i);
     }
-    sleep(1);
+
+    /* allow processes some time to vote */
+    sleep(TIME_TO_VOTE);
     int successes = 0;
     // kill all threads
     for (i = 0; i < num_slaves; i++) {
+        if (TEST_MASTER_DEATH && i == KILL_INDEX) exit(0);
+        /* should add 1 if result was received */
         successes += results[i];
-        pthread_join(tids[i], NULL);
+        pthread_cancel(tids[i]);
     }
     /* Phase 2 */
-    printf("exited for\n");
     if (successes == num_slaves) {
         /* broadcast COMMIT to all slaves */
         printf("Everyone agreed to commit! Woohoo!\n");

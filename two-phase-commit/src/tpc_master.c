@@ -20,17 +20,28 @@ typedef struct thread_arg {
 
 int main(int argc, char *argv[])
 {
+
     if (argc < 2) {
-        printf("Usage:\n");
+        printf("Please provide IP addresses of slave nodes.\n");
         return 1;
     }
+
+    // TODO Jahrme
+    // if you decide to use message queue, try this 1-vec-at-a-time
+    // message passing algorithm
+    //
+    // while (queue is empty)
+    //  while (queue is not empty)
+    //    pop message from queue
+    //    2-phase commit agreement w/ slaves
+    //    if all agree, make RPC calls w/ message args
 
     // argv[1..n] are the IP addresses of the slave nodes.
     int num_slaves = argc - 1;
     args = argv;
 
-    results = (int*) malloc(num_slaves * sizeof(int));
-    cl_arr = (CLIENT**) malloc(num_slaves * sizeof(CLIENT*));
+    results = (int *) malloc(num_slaves * sizeof(int));
+    cl_arr = (CLIENT **) malloc(num_slaves * sizeof(CLIENT *));
 
     /* Phase 1 */
     int i;
@@ -38,14 +49,14 @@ int main(int argc, char *argv[])
         results[i] = 0;
         cl_arr[i] = NULL;
         pthread_t tid = (pthread_t)i;
-        pthread_create(&tid, NULL, get_commit_resp, (void*)tid);
+        pthread_create(&tid, NULL, get_commit_resp, (void *) tid);
     }
     sleep(1);
     int successes = 0;
     // kill all threads
     for (i = 0; i < num_slaves; i++) {
         successes += results[i];
-        pthread_cancel((pthread_t)i);
+        pthread_cancel((pthread_t) i);
     }
 
     /* Phase 2 */
@@ -55,11 +66,13 @@ int main(int argc, char *argv[])
         for (i = 0; i < num_slaves; i++) {
             results[i] = 0;
             cl_arr[i] = NULL;
-            pthread_t tid = (pthread_t)i;
-            struct thread_arg *targ = (struct thread_arg *)malloc(sizeof(struct thread_arg));
-            commit_vec_args *cargs = (commit_vec_args*)malloc(sizeof(commit_vec_args));
-            unsigned int vec_id = (unsigned int)i;
-            unsigned long long vec = (unsigned long long)i;
+            pthread_t tid = (pthread_t) i;
+            struct thread_arg *targ = (struct thread_arg *) malloc(sizeof(struct thread_arg));
+
+            /* TODO: Jahrme add the IPC arguments here */
+            commit_vec_args *cargs = (commit_vec_args *) malloc(sizeof(commit_vec_args));
+            unsigned int vec_id = (unsigned int) i;
+            unsigned long long vec = (unsigned long long) i;
             cargs->vec_id = vec_id;
             cargs->vec = vec;
             targ->tid = tid;
@@ -70,7 +83,7 @@ int main(int argc, char *argv[])
              * but it crashes for some reason.
              */
             //pthread_create(&tid, NULL, commit_bit_vector, (void*)targ);
-            CLIENT* cl = clnt_create(args[i + 1], TWO_PHASE_COMMIT_VEC, TPC_COMMIT_VEC_V1, "tcp");
+            CLIENT *cl = clnt_create(args[i + 1], TWO_PHASE_COMMIT_VEC, TPC_COMMIT_VEC_V1, "tcp");
 
             /* TODO: test point of failure in this loop */
 
@@ -87,7 +100,7 @@ int main(int argc, char *argv[])
                 printf("Commit succeeded.\n");
             }
         }
-   }
+    }
     else {
         /* TODO: following the TPC protocol,
          * multicast ABORT to all slaves

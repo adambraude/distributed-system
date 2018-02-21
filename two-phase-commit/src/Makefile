@@ -1,12 +1,14 @@
-BIN := bin/
+BIN := bin
 
-MSTR = $(BIN)tpc_master
-SLV = $(BIN)tpc_slave
+MSTR = $(BIN)/tpc_master
+SLV = $(BIN)/tpc_slave
 
-CFLAGS = -g -Wall
+# Master/slave specific object files.
+MASTER_OBJ =  $(BIN)/tpc_clnt.o $(BIN)/tpc_master.o
+SLAVE_OBJ = $(BIN)/tpc_slave.o $(BIN)/tpc_svc.o
 
-MASTER_OBJ =  $(BIN)tpc_clnt.o $(BIN)tpc_xdr.o $(BIN)tpc_master.o
-SLAVE_OBJ = $(BIN)tpc_slave.o $(BIN)tpc_xdr.o $(BIN)tpc_svc.o
+# Shared object files.
+SHARED_OBJ = $(BIN)/tpc_xdr.o
 
 all:
 	@rpcgen tpc.x
@@ -16,20 +18,22 @@ objects: $(SLV) $(MSTR)
 
 $(MSTR): $(MASTER_OBJ) tpc.h vote.h
 	@echo "compiling master"
-	gcc -o $(MSTR) $(MASTER_OBJ) -lpthread
+	@gcc -o $(MSTR) $(MASTER_OBJ) $(SHARED_OBJ) -lpthread
 
 $(SLV): $(SLAVE_OBJ) tpc.h vote.h
 	@echo "compiling slave"
-	gcc -o $(SLV) $(SLAVE_OBJ)
+	@gcc -o $(SLV) $(SLAVE_OBJ) $(SHARED_OBJ)
 
 $(SLAVE_OBJ): tpc_slave.c tpc_xdr.c tpc_svc.c
-	@gcc -c -Wall -o $(BIN)tpc_slave.o tpc_slave.c
-	@gcc -c -Wall -o $(BIN)tpc_xdr.o tpc_xdr.c
-	@gcc -c -Wall -o $(BIN)tpc_svc.o tpc_svc.c
+	@gcc -c -Wall -o $(BIN)/tpc_slave.o tpc_slave.c
+	@gcc -c -Wall -o $(BIN)/tpc_svc.o tpc_svc.c
 
 $(MASTER_OBJ): tpc_clnt.c tpc_master.c
-	@gcc -c -Wall -o $(BIN)tpc_clnt.o tpc_clnt.c
-	@gcc -c -Wall -o $(BIN)tpc_master.o tpc_master.c
+	@gcc -c -Wall -o $(BIN)/tpc_clnt.o tpc_clnt.c
+	@gcc -c -Wall -o $(BIN)/tpc_master.o tpc_master.c
+
+$(SHARED_OBJ): tpc_xdr.c
+	@gcc -c -Wall -o $(BIN)/tpc_xdr.o tpc_xdr.c
 
 clean:
-	@if test -d $(BIN); then rm -rf $(BIN)/*; else mkdir $(BIN); fi
+	@if test -d $(BIN)/; then rm -rf $(BIN)/*; else mkdir $(BIN)/; fi

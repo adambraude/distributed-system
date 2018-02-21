@@ -1,4 +1,5 @@
 all:
+	@make clean
 	@echo "Compiling source files"
 	@cd src && make
 	@echo "Running tests"

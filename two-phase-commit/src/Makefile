@@ -12,19 +12,22 @@ SHARED_OBJ = $(BIN)/tpc_xdr.o
 
 all:
 	@rpcgen tpc.x
-	@make objects
+	@make master
+	@make slave
 
-objects: $(SLV) $(MSTR)
+master: $(MSTR)
 
-$(MSTR): $(MASTER_OBJ) tpc.h vote.h
-	@echo "compiling master"
+slave: $(SLV)
+
+$(MSTR): $(SHARED_OBJ) $(MASTER_OBJ) tpc.h vote.h
+	@echo "Compiling master code"
 	@gcc -o $(MSTR) $(MASTER_OBJ) $(SHARED_OBJ) -lpthread
 
-$(SLV): $(SLAVE_OBJ) tpc.h vote.h
-	@echo "compiling slave"
+$(SLV): $(SHARED_OBJ) $(SLAVE_OBJ) tpc.h vote.h
+	@echo "Compiling slave code"
 	@gcc -o $(SLV) $(SLAVE_OBJ) $(SHARED_OBJ)
 
-$(SLAVE_OBJ): tpc_slave.c tpc_xdr.c tpc_svc.c
+$(SLAVE_OBJ): tpc_slave.c tpc_svc.c
 	@gcc -c -Wall -o $(BIN)/tpc_slave.o tpc_slave.c
 	@gcc -c -Wall -o $(BIN)/tpc_svc.o tpc_svc.c
 

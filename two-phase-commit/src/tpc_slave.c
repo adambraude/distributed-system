@@ -16,6 +16,7 @@ int *commit_msg_1_svc(void *v, struct svc_req *req)
         result = VOTE_COMMIT;
     }
     else {
+        /* possible reasons: lack of memory, ... */
         result = VOTE_ABORT;
     }
     if (TESTING_MASTER_DEATH) {

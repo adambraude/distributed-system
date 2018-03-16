@@ -55,7 +55,7 @@ int commit_vector(vec_id_t vec_id, vec_t vector, char **slaves, int num_slaves)
         push_vec_args* ptr = (push_vec_args*) malloc(sizeof(push_vec_args));
         ptr->vector = vector;
         ptr->slave_addr = SLAVE_ADDR[i];
-		ptr->vec_id = vec_id;
+        ptr->vec_id = vec_id;
         pthread_create(&tids[i], NULL, push_vector, (void*) ptr);
     }
     for (i = 0; i < num_slaves; i++) {

@@ -1,5 +1,5 @@
 /**
- *  RPCs for [R]emote [Q]uerying (RQ)
+ *  RPCs for Slave
  */
 
 /**
@@ -52,11 +52,6 @@ program REMOTE_QUERY_ROOT {
         query_result RQ_RANGE_ROOT(rq_range_root_args) = 1;
     } = 1;
 } = 0x10;
-
-/*
- * TODO: instead of being able to send just one vector at a time,
- * send a linked list of vec_args structs
- */
 
 struct commit_vec_args {
     unsigned int vec_id;

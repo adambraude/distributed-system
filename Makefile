@@ -53,7 +53,7 @@ $(BIN)/tree_map.o:
 		$(BIN)/WAHQuery.o \
 		$(BIN)/SegUtil.o \
 		slave/slave.c \
-		-lssl -lcrypto -lm -lpthread
+		-lpthread
 
 .dbms:
 	@echo "Compiling DBMS"

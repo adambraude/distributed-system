@@ -16,10 +16,10 @@
 #include <pthread.h>
 #include <unistd.h>
 
-query_result *get_vector(u_int vec_id) {
+query_result *get_vector(u_int vec_id)
+{
     /* Turn vec_id into the filename "vec_id.dat" */
-    int number_size = (vec_id == 0 ? 1 : (int) (log10(vec_id) + 1));
-    int filename_size = number_size + 6; /* ".dat" */
+
     char filename[16];
     snprintf(filename, 16, "v_%u.dat", vec_id);
     /* Necessary Variables */
@@ -143,7 +143,6 @@ void *init_coordinator_thread(void *coord_args) {
         return (void *) 1;
     }
     else {
-		printf("Obtained result: %d\n", res->exit_code);
         results[args->query_result_index] = res;
     }
     return (void *) 0;

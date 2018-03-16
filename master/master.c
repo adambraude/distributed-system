@@ -2,7 +2,6 @@
 #include "tpc_master.h"
 #include "master_rq.h"
 #include "../ipc/messages.h"
-//#include "../rpc/gen/rq.h"
 #include "slavelist.h"
 #include "../consistent-hash/ring/src/tree_map.h"
 #include "../types/types.h"
@@ -56,7 +55,6 @@ int main(int argc, char *argv[])
     struct msgbuf *request;
     struct msqid_ds buf;
     int rc;
-
     /*
      * insert slaves into the tree
      */
@@ -77,7 +75,6 @@ int main(int argc, char *argv[])
 
 
             request = (struct msgbuf *) malloc(sizeof(msgbuf));
-//            printf("allocated request\n");
             /* Grab from queue. */
             rc = msgrcv(msq_id, request, sizeof(msgbuf), 0, 0);
 
@@ -107,16 +104,10 @@ int main(int argc, char *argv[])
                 ];
                 */
                 if (NUM_SLAVES == 1) {
-                    printf("about to put vector\n");
-                    //printf("putting %llu\n...\n", value);
-                    printf("Putting a vector %u:%llu to %s\n", request->vector.vec_id, request->vector.vec.vector[0], SLAVE_ADDR[0]);
-                    printf("commit call\n");
                     commit_vector(request->vector.vec_id, request->vector.vec, SLAVE_ADDR, 1);
                 }
                 // TODO ensure slave_1 != slave_2 != slave_3
                 // TODO: call commit_vector RPC function here
-                //commit_vector(request->vector.vec_id, request->vector.vec,
-                //    {slave_1, slave_2, slave_3}, 3);
             }
             else if (request->mtype == mtype_range_query) {
                 range_query_contents contents = request->range_query;

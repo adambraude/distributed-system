@@ -23,9 +23,8 @@ int init_range_query(unsigned int *range_array, int num_ranges, char *ops, int a
     if (cl == NULL) {
         printf("Error: could not connect to coordinator %s.\n", coordinator);
     }
-	printf("Calling range root\n");
-    rq_range_root_1(*root, cl);
-	printf("Range root complete\a\n");
+    query_result *res = rq_range_root_1(*root, cl);
+    printf("Result->vector.vector_val[0] is: %llu\n", res->vector.vector_val[0]);
     free(root);
     return EXIT_SUCCESS;
 }

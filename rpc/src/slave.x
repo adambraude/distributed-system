@@ -1,7 +1,7 @@
 /**
  *  RPCs for Slave
  */
-
+ #include "../../vector-clock/vclock_type.h"
 /**
  *  Pipe Query
  *

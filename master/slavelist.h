@@ -1,15 +1,16 @@
 #ifndef SLAVELIST
 #define SLAVELIST
 
-// XXX: keep these in a private file, pipe them as command line arguments
-// into the live version
+/* XXX: keep these in a private file, pipe them as command line arguments
+ into the live version
+*/
 #define DB_CAPSTONE_1_ADDR "10.250.94.63"
 #define DB_CAPSTONE_2_ADDR "10.250.94.56"
 #define DB_CAPSTONE_3_ADDR "10.250.94.72"
 #define HOME_ADDR "127.0.1.1"
 
-//#define LOCALTEST
-//#define FULL_TEST
+/* #define LOCALTEST */
+/* #define FULL_TEST */
 #define DBCAP_1_TEST
 
 #ifdef DBCAP_1_TEST

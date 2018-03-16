@@ -5,6 +5,7 @@
 #include "slavelist.h"
 #include "../consistent-hash/ring/src/tree_map.h"
 #include "../types/types.h"
+#include "../vector-clock/vclock.h"
 
 #include <errno.h>
 #include <stdbool.h>
@@ -19,6 +20,7 @@
 
 rbt_ptr chash_table;
 
+extern vector_clock master_clock;
 /**
  * Comparator for machine-vector tuples to sort in ascending order of machine ID.
  * Source: https://en.wikipedia.org/wiki/Qsort
@@ -49,6 +51,7 @@ int main(int argc, char *argv[])
         return 1;
     }
     */
+    master_clock = create_vclock();
     /* Connect to message queue. */
     int msq_id = msgget(MSQ_KEY, MSQ_PERMISSIONS | IPC_CREAT);
     /* Container for messages. */

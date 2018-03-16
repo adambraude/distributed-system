@@ -7,7 +7,7 @@ CFLAGS := -Wall
 CIGNORE := -Wno-incompatible-pointer-types -Wno-unused-command-line-argument
 CC := gcc $(CFLAGS) $(CIGNORE)
 
-all: clean .master .slave .dbms
+all: clean .vector_clock .master .slave .dbms
 
 clean:
 	@echo "Cleaning..."
@@ -35,6 +35,7 @@ $(BIN)/tree_map.o:
 		$(BIN)/tree_map.o \
 		$(BIN)/master_rq.o \
 		$(BIN)/master_tpc.o \
+		$(BIN)/vclock.o \
 		master/master.c \
 		-lssl -lcrypto -lm -lpthread
 
@@ -54,6 +55,11 @@ $(BIN)/tree_map.o:
 		$(BIN)/SegUtil.o \
 		slave/slave.c \
 		-lpthread
+
+.vector_clock:
+	@echo "Compiling vector clock"
+	@$(CC) -c -o $(BIN)/vclock.o \
+		vector-clock/vclock.c
 
 .dbms:
 	@echo "Compiling DBMS"

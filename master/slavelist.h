@@ -18,14 +18,14 @@
     static char SLAVE_ADDR[NUM_SLAVES][32] = {
         DB_CAPSTONE_1_ADDR
     };
-#endif
+#endif /* DBCAP_1_TEST */
 
 #ifdef LOCALTEST
     #define NUM_SLAVES 1
     static char SLAVE_ADDR[NUM_SLAVES][32] = {
         HOME_ADDR
     };
-#endif
+#endif /* LOCALTEST */
 
 #ifdef FULL_TEST /* Full test with 3 slaves */
     #define NUM_SLAVES 3
@@ -34,8 +34,8 @@
         DB_CAPSTONE_2_ADDR,
         DB_CAPSTONE_3_ADDR
     };
-#endif
+#endif /* FULL_TEST */
 
 #define NUM_MACHINES NUM_SLAVES + 1
 
-#endif
+#endif /* SLAVELIST */

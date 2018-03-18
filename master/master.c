@@ -20,7 +20,7 @@
 
 rbt_ptr chash_table;
 
-extern vector_clock master_clock;
+vector_clock master_clock;
 /**
  * Comparator for machine-vector tuples to sort in ascending order of machine ID.
  * Source: https://en.wikipedia.org/wiki/Qsort

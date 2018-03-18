@@ -23,11 +23,12 @@ struct rq_pipe_args {
 struct query_result {
     unsigned hyper int vector<>;
     unsigned int exit_code;
+    vector_clock vclock;
 };
 
 program REMOTE_QUERY_PIPE {
     version REMOTE_QUERY_PIPE_V1 {
-        query_result RQ_PIPE(rq_pipe_args) = 1;
+        query_result RQ_PIPE(rq_pipe_args, vector_clock) = 1;
     } = 1;
 } = 0x20;
 
@@ -49,7 +50,7 @@ struct rq_range_root_args {
 
 program REMOTE_QUERY_ROOT {
     version REMOTE_QUERY_ROOT_V1 {
-        query_result RQ_RANGE_ROOT(rq_range_root_args) = 1;
+        query_result RQ_RANGE_ROOT(rq_range_root_args, vector_clock) = 1;
     } = 1;
 } = 0x10;
 
@@ -58,14 +59,16 @@ struct commit_vec_args {
     unsigned hyper int vector<>;
 };
 
+/* TODO: Should TPC RPCs include a vector_clock component in return value? */
+
 program TWO_PHASE_COMMIT_VOTE {
     version TWO_PHASE_COMMIT_VOTE_V1 {
-        int COMMIT_MSG(int x) = 1;
+        int COMMIT_MSG(int x, vector_clock) = 1;
     } = 1;
 } = 0x30;
 
 program TWO_PHASE_COMMIT_VEC {
     version TPC_COMMIT_VEC_V1 {
-        int COMMIT_VEC(struct commit_vec_args) = 1;
+        int COMMIT_VEC(struct commit_vec_args, vector_clock) = 1;
     } = 1;
 } = 0x40;

@@ -51,6 +51,7 @@ $(BIN)/tree_map.o:
 	@$(CC) -o $(BIN)/slave \
 		$(RPC_BIN)/slave_svc.o \
 		$(RPC_BIN)/slave_xdr.o \
+		$(BIN)/vclock.o \
 		$(BIN)/WAHQuery.o \
 		$(BIN)/SegUtil.o \
 		slave/slave.c \

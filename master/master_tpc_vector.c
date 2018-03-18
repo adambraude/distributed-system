@@ -1,6 +1,9 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#include "../vector-clock/vclock.h"
+#include "master.h"
 #include "tpc_master.h"
 #include "../rpc/vote.h"
 #include "../rpc/gen/slave.h"
@@ -87,7 +90,7 @@ void *get_commit_resp(void *slv_addr_arg)
     printf("client control pn %d\n", clnt == NULL);
     clnt_control(clnt, CLSET_TIMEOUT, &tv);
     printf("About to connect\n");
-    int *result = commit_msg_1(0, clnt);
+    int *result = commit_msg_1(0, master_clock, clnt);
 
     if (result == NULL || *result == VOTE_ABORT) {
         printf("Couldn't commit at slave %s.\n", slv_addr);
@@ -116,7 +119,7 @@ void *push_vector(void *thread_arg)
     a->vec_id = args->vec_id;
     a->vector.vector_val = args->vector.vector;
     a->vector.vector_len = args->vector.vector_length;
-    int *result = commit_vec_1(*a, cl);
+    int *result = commit_vec_1(*a, master_clock, cl);
 
     if (result == NULL) {
         printf("Commit failed.\n");

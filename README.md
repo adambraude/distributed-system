@@ -16,7 +16,12 @@ You can install this in Ubuntu with
 sudo apt install libc-dev-bin
 ```
 ## Troubleshooting
-You may run into issues running `rpcgen` on Linux even if it's installed, but you haven't run it in a while. If you do, try
+You may run into issues running `rpcgen` on Linux even if it's installed, but you haven't run it in a while, say
+```
+Cannot register service: RPC: Unable to receive; errno = Connection refused
+unable to register ([...]).
+```
+If you do, try
 ```
 sudo rpcbind
 ```

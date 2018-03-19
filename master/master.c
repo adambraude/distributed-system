@@ -173,6 +173,8 @@ int main(int argc, char *argv[])
 
     }
 
+    destroy_vclock(master_clock);
+
     return EXIT_SUCCESS;
 }
 

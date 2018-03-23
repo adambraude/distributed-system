@@ -9,8 +9,8 @@
 #define DB_CAPSTONE_3_ADDR "10.250.94.72"
 #define HOME_ADDR "127.0.1.1"
 
-/* #define LOCALTEST */
-/* #define FULL_TEST */
+// #define LOCALTEST
+// #define FULL_TEST
 #define DBCAP_1_TEST
 
 #ifdef DBCAP_1_TEST

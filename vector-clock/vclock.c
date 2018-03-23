@@ -9,7 +9,7 @@
 /**
  * Create a new vector clock.
  *
- * All times are initialized to `0`.
+ * All clocks are initialized to the `0` vector.
  */
 vector_clock create_vclock(void)
 {
@@ -35,11 +35,15 @@ void destroy_vclock(vector_clock garbage)
 /**
  * Compare two vector clocks.
  *
- * Returns `-1` if `first` is earlier and `1` if `second` is earlier.
+ * Returns:
+ *      `-1` if `first` is earlier
+ *      `0` if `first` and `second` are equal
+ *      `1` if `second` is earlier
  */
 int compare_vclock(vector_clock first, vector_clock second)
 {
     bool is_before = false;
+    bool are_equal = true;
 
     int i;
     for (i = 0; i < NUM_MACHINES; i++) {
@@ -48,17 +52,18 @@ int compare_vclock(vector_clock first, vector_clock second)
         }
         else if (first[i] < second[i]) {
             is_before = true;
+            are_equal = false;
         }
     }
 
-    if (is_before) return -1;
+    if (are_equal) return 0;
+    else if (is_before) return -1;
     else return 1;
 }
 
 /**
- * Updates current clock given a received clock.
- *
- * The `current_clock` is updated in-place.
+ * Updates `current_clock`, in-place, to the max of the two given clocks,
+ * and increment the receiver's timestamp.
  */
 void handle_recvd_vclock(vector_clock current_clock,
     vector_clock received_clock, int receiver_id)

@@ -36,7 +36,8 @@ vector_clock slave_clock;
 
 void *init_coordinator_thread(void *coord_args) {
     coord_thread_args *args = (coord_thread_args *) coord_args;
-    CLIENT *clnt = clnt_create(args->args->machine_addr, REMOTE_QUERY_PIPE, REMOTE_QUERY_PIPE_V1, "tcp");
+    CLIENT *clnt = clnt_create(args->args->machine_addr, REMOTE_QUERY_PIPE,
+        REMOTE_QUERY_PIPE_V1, "tcp");
 
     if (clnt == NULL) {
         printf("client is null\n");
@@ -84,7 +85,8 @@ query_result *get_vector(u_int vec_id)
         while (fgets(buf, 32, fp) != NULL) {
             if (vector_len > num_elts) {
                 num_elts *= 2;
-                vector_val = (u_int64_t *) realloc(vector_val, num_elts * sizeof(u_int64_t));
+                vector_val = (u_int64_t *)
+                    realloc(vector_val, num_elts * sizeof(u_int64_t));
             }
 
             vector_val[vector_len++] = (u_int64_t) strtol(buf, NULL, 10);
@@ -101,7 +103,9 @@ query_result *get_vector(u_int vec_id)
     return vector;
 }
 
-query_result *rq_pipe_1_svc(rq_pipe_args query, vector_clock recv_clock, struct svc_req *req)
+query_result
+*rq_pipe_1_svc(rq_pipe_args query, vector_clock recv_clock,
+    struct svc_req *req)
 {
     if (slave_clock == NULL) {
         slave_clock = create_vclock();
@@ -115,19 +119,16 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, vector_clock recv_clock, struct 
     u_int exit_code = EXIT_SUCCESS;
     this_result = get_vector(query.vec_id);
 
+    prep_send_vclock(slave_clock, slave_id);
+    this_result->time_at_completion = slave_clock;
+
     /* Something went wrong with reading the vector. */
     if (this_result->exit_code != EXIT_SUCCESS) {
-        prep_send_vclock(slave_clock, slave_id);
-        this_result->vclock = slave_clock;
-
         return this_result;
     }
 
     /* We are the final call. */
     else if (query.next == NULL) {
-        prep_send_vclock(slave_clock, slave_id);
-        this_result->vclock = slave_clock;
-
         return this_result;
     }
 
@@ -135,7 +136,8 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, vector_clock recv_clock, struct 
     else {
         char *host = query.machine_addr;
         CLIENT *client;
-        client = clnt_create(host, REMOTE_QUERY_PIPE, REMOTE_QUERY_PIPE_V1, "tcp");
+        client = clnt_create(host, REMOTE_QUERY_PIPE, REMOTE_QUERY_PIPE_V1,
+            "tcp");
 
         if (client == NULL) {
             clnt_pcreateerror(host);
@@ -157,14 +159,12 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, vector_clock recv_clock, struct 
     if (next_result->exit_code != EXIT_SUCCESS) {
         this_result->exit_code = next_result->exit_code;
 
-        prep_send_vclock(slave_clock, slave_id);
-        this_result->vclock = slave_clock;
-
         return this_result;
     }
 
     /* Our final return values. */
-    u_int64_t *result_val = (u_int64_t *) malloc(sizeof(u_int64_t) * this_result->vector.vector_len);
+    u_int64_t *result_val = (u_int64_t *)
+        malloc(sizeof(u_int64_t) * this_result->vector.vector_len);
     u_int result_len = 0;
 
     if (query.op == '|') {
@@ -190,13 +190,12 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, vector_clock recv_clock, struct 
     free(this_result);
     free(next_result);
 
-    prep_send_vclock(slave_clock, slave_id);
-    this_result->vclock = slave_clock;
-
     return vector;
 }
 
-query_result *rq_range_root_1_svc(rq_range_root_args query, vector_clock recv_clock, struct svc_req *req)
+query_result
+*rq_range_root_1_svc(rq_range_root_args query, vector_clock recv_clock,
+    struct svc_req *req)
 {
     if (slave_clock == NULL) {
         slave_clock = create_vclock();
@@ -215,7 +214,8 @@ query_result *rq_range_root_1_svc(rq_range_root_args query, vector_clock recv_cl
     int i;
     for (i = 0; i < num_threads; i++) {
         int num_nodes = range_array[array_index++];
-        rq_pipe_args *pipe_args = (rq_pipe_args *) malloc(sizeof(rq_pipe_args) * num_nodes);
+        rq_pipe_args *pipe_args = (rq_pipe_args *)
+            malloc(sizeof(rq_pipe_args) * num_nodes);
         rq_pipe_args *head_args = pipe_args;
 
         int j;
@@ -225,7 +225,8 @@ query_result *rq_range_root_1_svc(rq_range_root_args query, vector_clock recv_cl
             pipe_args->op = '|';
 
             if (j < num_nodes - 1) {
-                rq_pipe_args *next_args = (rq_pipe_args *) malloc(sizeof(rq_pipe_args) * num_nodes);
+                rq_pipe_args *next_args = (rq_pipe_args *)
+                    malloc(sizeof(rq_pipe_args) * num_nodes);
                 pipe_args->next = next_args;
                 pipe_args = next_args;
             }
@@ -235,12 +236,14 @@ query_result *rq_range_root_1_svc(rq_range_root_args query, vector_clock recv_cl
             }
         }
 
-        coord_thread_args *thread_args = (coord_thread_args *) malloc(sizeof(coord_thread_args));
+        coord_thread_args *thread_args = (coord_thread_args *)
+            malloc(sizeof(coord_thread_args));
         thread_args->query_result_index = i;
         thread_args->args = head_args;
 
         /* allocate the appropriate number of args */
-        pthread_create(&tids[i], NULL, init_coordinator_thread, (void *) thread_args);
+        pthread_create(&tids[i], NULL, init_coordinator_thread,
+            (void *) thread_args);
     }
 
     for (i = 0; i < num_threads; i++) {
@@ -250,12 +253,13 @@ query_result *rq_range_root_1_svc(rq_range_root_args query, vector_clock recv_cl
     /* TODO: AND all the results together */
 
     prep_send_vclock(slave_clock, slave_id);
-    results[0]->vclock = slave_clock;
+    results[0]->time_at_completion = slave_clock;
 
     return results[0];
 }
 
-int *commit_msg_1_svc(int message, vector_clock recv_clock, struct svc_req *req)
+int
+*commit_msg_1_svc(int message, vector_clock recv_clock, struct svc_req *req)
 {
     if (slave_clock == NULL) {
         slave_clock = create_vclock();
@@ -285,7 +289,9 @@ int *commit_msg_1_svc(int message, vector_clock recv_clock, struct svc_req *req)
     return &result;
 }
 
-int *commit_vec_1_svc(struct commit_vec_args args, vector_clock recv_clock, struct svc_req *req)
+int
+*commit_vec_1_svc(struct commit_vec_args args, vector_clock recv_clock,
+    struct svc_req *req)
 {
     if (slave_clock == NULL) {
         slave_clock = create_vclock();

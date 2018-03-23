@@ -34,7 +34,7 @@ int init_range_query(unsigned int *range_array, int num_ranges, char *ops,
 
     prep_send_vclock(master_clock, 0);
     query_result *res = rq_range_root_1(*root, cl, master_clock);
-    handle_recvd_vclock(master_clock, res->vclock, 0);
+    handle_recvd_vclock(master_clock, res->time_at_completion, 0);
 
     printf("Result->vector.vector_val[0] is: %llu\n",
         res->vector.vector_val[0]);

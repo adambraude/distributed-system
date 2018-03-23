@@ -23,7 +23,7 @@ struct rq_pipe_args {
 struct query_result {
     unsigned hyper int vector<>;
     unsigned int exit_code;
-    vector_clock vclock;
+    vector_clock time_at_completion;
 };
 
 program REMOTE_QUERY_PIPE {

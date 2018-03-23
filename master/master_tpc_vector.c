@@ -115,7 +115,7 @@ void *push_vector(void *thread_arg)
     }
 
     commit_vec_args *a = (commit_vec_args*) malloc(sizeof(commit_vec_args));
-	printf("Committing vector %u\n", a->vec_id);
+    printf("Committing vector %u\n", a->vec_id);
     a->vec_id = args->vec_id;
     a->vector.vector_val = args->vector.vector;
     a->vector.vector_len = args->vector.vector_length;

@@ -3,7 +3,7 @@
 """
 Running
     python3 convert_voting_data.py
-will create the `./voting_data/` directory and fill it with
+will create the `./voting_data/` directory and fill it with LITERAL WAH
 vectors created by parsing the `voting_data.tsv` file.
 
 The vectors are explained in the generated `README.md` in the directory.
@@ -42,11 +42,12 @@ vectors = [[None for j in range(vector_len)] for i in range(num_vectors)]
 # Convert a list of boolean values into a binary string.
 def boolean_list_to_hex_string(array):
     bin_str = "".join(["1" if x == True else "0" for x in array])
-    value = int(bin_str, 2)
+    #value = int(bin_str, 2)
     # vector length is in bits, so div by 4 for number of hex, add 2 for 0x.
-    hex_width = 2 + vector_len // 4
-    hex_str = hex(value).ljust(hex_width, "0")
-    return hex_str
+    #hex_width = 2 + vector_len // 4
+    #bin_str = bin(value).ljust(hex_width, "0").replace("0x", "")
+    s = [hex(int('0' + bin_str[i:i+63], 2)) for i in range(0, len(bin_str), 63)]
+    return "\n".join(s)
 
 def process_row(row, row_num):
     attrs = row.split()
@@ -80,6 +81,8 @@ for vector in vectors:
     vec_id += 1
 
 readme ="""# Voting Data Vectors
+
+**Important** each vector is a literal 64-bit WAH
 
 The vectors are broken down as follows:
 

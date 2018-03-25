@@ -45,19 +45,40 @@ $(BIN)/tree_map.o:
 	@$(CC) -c -o $(BIN)/SegUtil.o \
 		../bitmap-engine/BitmapEngine/src/seg-util/SegUtil.c
 
-.slave: .rpc .engine
+.slave: .rpc .engine .bitmap-vector
 	@echo "Compiling Slave"
 	@$(CC) -o $(BIN)/slave \
 		$(RPC_BIN)/slave_svc.o \
 		$(RPC_BIN)/slave_xdr.o \
 		$(BIN)/WAHQuery.o \
 		$(BIN)/SegUtil.o \
+		$(BIN)/read_vec.o \
 		slave/slave.c \
 		-lpthread -lm
 
-.dbms:
+.dbms: .bitmap-vector
 	@echo "Compiling DBMS"
-	@$(CC) -o $(BIN)/dbms dbms/dbms.c
+	@$(CC) -o $(BIN)/dbms \
+		$(BIN)/read_vec.o \
+		dbms/dbms.c
+
+.bitmap-vector:
+	@echo "Compiling bitmap vector utilities"
+	@$(CC) -c -o $(BIN)/read_vec.o \
+		bitmap-vector/read_vec.c
 
 .start_dbms:
 	@$(bin)/dbms
+
+spawn_slave: all
+	@echo "Starting slave"
+	@cd bin/ && ./slave
+
+basic_test: all
+	@cd bin/ && ./dbms 0
+
+# Voting data test
+vd_test: all
+	@echo "Creating test data..."
+	@cd tst_data && python3 convert_voting_data.py
+	@cd bin/ && ./dbms 1

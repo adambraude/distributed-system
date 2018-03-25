@@ -45,28 +45,40 @@ int main(int argc, char *argv[])
     // XXX: running with defaults for now (r = 3, and hardcoded slave addresses)
     /*
     if (argc < 3) {
-        printf("Usage: [-r repl_factor] -s slave_addr1 [... slave_addrn]\n");
+        printf("Usage: -p partition-type [-k largest-key-size] [-r repl_factor] -s slave_addr1 [... slave_addrn]\n");
         return 1;
     }
     */
     /* Connect to message queue. */
+    enum {RING_CH, STATIC_PARTITION};
+    int PARTITION_TYPE = RING_CH;
     int msq_id = msgget(MSQ_KEY, MSQ_PERMISSIONS | IPC_CREAT);
     /* Container for messages. */
     struct msgbuf *request;
     struct msqid_ds buf;
     int rc;
+    int get_machine_ids(int);
     /*
      * insert slaves into the tree
      */
-     chash_table = new_rbt();
-     int i;
-     for (i = 0; i < NUM_SLAVES; i++) {
-        struct cache *cptr = (struct cache*) malloc(sizeof(struct cache));
-        cptr->cache_id = i;
-        cptr->cache_name = SLAVE_ADDR[i];
-        cptr->replication_factor = 1;
-        insert_cache(chash_table, cptr);
-        free(cptr);
+    if (PARTITION_TYPE == RING_CH) {
+        chash_table = new_rbt();
+        int i;
+        for (i = 0; i < NUM_SLAVES; i++) {
+            struct cache *cptr = (struct cache*) malloc(sizeof(struct cache));
+            cptr->cache_id = i;
+            cptr->cache_name = SLAVE_ADDR[i];
+            cptr->replication_factor = 1;
+            insert_cache(chash_table, cptr);
+            free(cptr);
+        }
+        get_machine_ids = ring_ch_get_ids;
+    }
+    else if (PARTITION_TYPE == STATIC_PARTITION) {
+        // TODO: divide key space among the nodes
+        // take the number of keys, divide by the number of slaves, then
+        // assign each slave to a partition: keys within a particular range
+        // will go to a specific slave
     }
     while (true) {
         msgctl(msq_id, IPC_STAT, &buf);
@@ -136,6 +148,9 @@ int main(int argc, char *argv[])
                     for (j = range[0]; j <= range[1]; j++) {
                         unsigned int *tuple = (unsigned int *)
                             malloc(sizeof(unsigned int) * 2);
+                        // TODO: write a function to map vectors to machines
+                        // that just takes vector IDs, that uses whatever
+                        // implementation set by the client (ring/jump CH, or partitioning)
                         tuple[0] = get_machine_for_vector(chash_table, j);
                         tuple[1] = j;
                         machine_vec_ptrs[j - range[0]] = tuple;
@@ -170,6 +185,11 @@ int main(int argc, char *argv[])
     }
 
     return EXIT_SUCCESS;
+}
+
+int ring_ch_get_ids(int vec_id)
+{
+    return get_machine_for_vector(chash_table, vec_id);
 }
 
 void sigint_handler(int sig)

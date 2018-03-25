@@ -9,4 +9,4 @@ typedef struct vec_t {
     unsigned int vector_length;
 } vec_t;
 typedef unsigned int vec_id_t;
-#endif
+#endif /* TYPES_H */

@@ -70,3 +70,13 @@ program TWO_PHASE_COMMIT_VEC {
         int COMMIT_VEC(struct commit_vec_args) = 1;
     } = 1;
 } = 0x40;
+
+struct init_slave_args {
+    unsigned int slave_id;
+};
+
+program INIT_SLAVE {
+    version INIT_SLAVE_V1 {
+        int INIT_SLAVE(init_slave_args) = 1;
+    } = 1;
+} = 0x50;

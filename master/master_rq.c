@@ -9,7 +9,9 @@
 #include <string.h>
 #include <stdlib.h>
 
-int init_range_query(unsigned int *range_array, int num_ranges, char *ops, int array_len)
+// TODO: return a query result instead
+int
+init_range_query(unsigned int *range_array, int num_ranges, char *ops, int array_len)
 {
     rq_range_root_args *root = (rq_range_root_args *) malloc(sizeof(rq_range_root_args));
     root->range_array.range_array_val = range_array;
@@ -31,11 +33,17 @@ int init_range_query(unsigned int *range_array, int num_ranges, char *ops, int a
         return 1;
     }
     int i;
-    printf("Result: \n");
-    for (i = 0; i < res->vector.vector_len - 1; i++) {
-        printf("%llu\n",res->vector.vector_val[i]);
+    printf("Result (len = %u): \n", res->vector.vector_len);
+    if (res->exit_code == EXIT_SUCCESS) {
+        for (i = 1; i < res->vector.vector_len - 1; i++) {
+            printf("%llx\n",res->vector.vector_val[i]);
+        }
+        printf("%llx\n", res->vector.vector_val[i]);
     }
-    printf("%llu\n", res->vector.vector_val[i]);
+    else {
+        printf("Query failed, reason: %s\n", res->error_message);
+    }
     free(root);
+    //if (res != NULL) free(res);
     return EXIT_SUCCESS;
 }

@@ -23,6 +23,16 @@ void test_put_vec_len_1(int queue_id, int vec_id, unsigned long long vec) {
     v->vector_length = 1;
     put_vector(queue_id, vec_id, v);
 }
+
+void test_put_vec_len_2(int queue_id, int vec_id, unsigned long long vec, unsigned long long vec2) {
+    vec_t *v = (vec_t *)malloc(sizeof(vec_t));
+    unsigned long long varr[] = {vec, vec2};
+    memcpy(v->vector, varr, sizeof(unsigned long long) * 2);
+    v->vector[0] = vec;
+    v->vector[1] = vec2;
+    v->vector_length = 2;
+    put_vector(queue_id, vec_id, v);
+}
 /**
  * Database Management System (DBMS)
  *
@@ -61,9 +71,23 @@ int main(int argc, char *argv[])
     test_put_vec_len_1(msq_id, 3, 0x0781);
     test_put_vec_len_1(msq_id, 4, 0x99ff);
 
+    test_put_vec_len_1(msq_id, 5, 43776);
+    test_put_vec_len_1(msq_id, 6, 49168);
+    test_put_vec_len_1(msq_id, 7, 0x8170);
+    test_put_vec_len_1(msq_id, 8, 0xff99);
+
+    test_put_vec_len_2(msq_id, 9, 867, 79425);
+    test_put_vec_len_2(msq_id, 10, 867, 53102);
+
+
     /* testing range query */
-    char range[] = "R:[1,4]";
+    printf("Range query\n");
+    char range[] = "R:[1,4]&[5,8]";
     range_query(msq_id, range);
+    char range2[] = "R:[1,2]&[3,4]&[5,6]";
+    range_query(msq_id, range2);
+    char range3[] = "R:[9,10]";
+    range_query(msq_id, range3);
     int master_result = 0;
     wait(&master_result);
 

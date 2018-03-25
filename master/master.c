@@ -104,7 +104,7 @@ int main(int argc, char *argv[])
                 ];
                 */
                 if (NUM_SLAVES == 1) {
-                    commit_vector(request->vector.vec_id, request->vector.vec, SLAVE_ADDR, 1);
+                    commit_vector(request->vector.vec_id, request->vector.vec);
                 }
                 // TODO ensure slave_1 != slave_2 != slave_3
                 // TODO: call commit_vector RPC function here
@@ -159,7 +159,6 @@ int main(int argc, char *argv[])
                     }
                     free(machine_vec_ptrs);
                 }
-
                 init_range_query(range_array, contents.num_ranges, contents.ops, array_index);
             }
             else if (request->mtype == mtype_point_query) {

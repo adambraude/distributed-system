@@ -53,7 +53,7 @@ $(BIN)/tree_map.o:
 		$(BIN)/WAHQuery.o \
 		$(BIN)/SegUtil.o \
 		slave/slave.c \
-		-lpthread
+		-lpthread -lm
 
 .dbms:
 	@echo "Compiling DBMS"

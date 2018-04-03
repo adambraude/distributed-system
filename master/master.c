@@ -1,7 +1,6 @@
 #include "master.h"
 #include "tpc_master.h"
 #include "master_rq.h"
-#include "../ipc/messages.h"
 #include "slavelist.h"
 #include "../consistent-hash/ring/src/tree_map.h"
 #include "../types/types.h"
@@ -135,9 +134,8 @@ int main(int argc, char *argv[])
         }
 
         case JUMP_CH: {
-
-        }
             // TODO setup jump
+        }
 
         case STATIC_PARTITION: {
             int i;
@@ -153,7 +151,6 @@ int main(int argc, char *argv[])
             }
             separation = num_keys / num_slaves;
         }
-
     }
 
     /* message receipt loop */
@@ -170,8 +167,7 @@ int main(int argc, char *argv[])
             if (rc < 0) {
                 perror( strerror(errno) );
                 printf("msgrcv failed, rc = %d\n", rc);
-                //return EXIT_FAILURE;
-                continue; // do a Heartbeat first?
+                continue;
             }
 
             if (request->mtype == mtype_put) {
@@ -190,90 +186,24 @@ int main(int argc, char *argv[])
                 }
                 int commit_res = commit_vector(request->vector.vec_id, request->vector.vec,
                     commit_slaves, replication_factor);
-                if (commit_res) {
+                if (commit_res)
                     heartbeat();
             }
             else if (request->mtype == mtype_range_query) {
                 range_query_contents contents = request->range_query;
-                bool passed = false;
-                while (!passed) {
-                    switch (query_plan_t) { // XXX fill in the switches, move unistar to another function
-                        case STARFISH: {
-                            int i;
-                            int num_ints_needed = 0;
-                            for (i = 0; i < contents.num_ranges; i++) {
-                                unsigned int *range = contents.ranges[i];
-                                // each range needs this much data:
-                                // number of vectors (inside parens), a machine/vector ID
-                                // for each one, preceded by the number of vectors to query
-                                int row_len = (range[1] - range[0] + 1) * 2 + 1;
-                                num_ints_needed += row_len;
-                            }
+                switch (query_plan_t) { // TODO: fill in cases
+                    case STARFISH: {
+                        while(!starfish(contents))
+                            heartbeat();
+                    }
+                    case UNISTAR: {
 
-                            // FIXME: call the query optimizer at some point
-                            // in this code, or just use the default one we've generated
+                    }
+                    case MULTISTAR: {
 
-                            // TODO: instead call the query planner, to hand us a query
-                            // optimized or not
+                    }
+                    case ITER_PRIM: {
 
-                            /* this array will eventually include data for the coordinator
-                               slave's RPC  as described in the distributed system wiki. */
-                            unsigned int *range_array = (unsigned int *)
-                                malloc(sizeof(unsigned int) * num_ints_needed);
-                            int array_index = 0;
-                            for (i = 0; i < contents.num_ranges; i++) {
-                                unsigned int *range = contents.ranges[i];
-                                vec_id_t j;
-                                // start of range is number of vectors
-                                range_array[array_index++] = range[1] - range[0] + 1;
-                                unsigned int **machine_vec_ptrs = (unsigned int **)
-                                    malloc(sizeof(int *) * (range[1] - range[0] + 1));
-                                for (j = range[0]; j <= range[1]; j++) {
-                                    unsigned int *tuple = (unsigned int *)
-                                        malloc(sizeof(unsigned int) * 2);
-
-                                    // TODO: write a function to map vectors to machines
-                                    // that just takes vector IDs, that uses whatever
-                                    // implementation set by the client (ring/jump CH, or partitioning)
-                                    tuple[0] = get_machines_for_vector(j)[0]; // FIXME: use backup node info to improve the query!
-                                    tuple[1] = j;
-                                    machine_vec_ptrs[j - range[0]] = tuple;
-                                }
-
-                                qsort(machine_vec_ptrs, range[1] - range[0],
-                                    sizeof(unsigned int) * 2, compare_machine_vec_tuple);
-
-                                /* save machine/vec IDs into the array */
-                                int tuple_index;
-                                for (j = range[0]; j <= range[1]; j++) {
-                                    tuple_index = j - range[0];
-                                    range_array[array_index++] =
-                                        machine_vec_ptrs[tuple_index][0];
-                                    range_array[array_index++] =
-                                        machine_vec_ptrs[tuple_index][1];
-                                }
-
-                                for (j = range[0]; j <= range[1]; j++) {
-                                    free(machine_vec_ptrs[j - range[0]]);
-                                }
-                                free(machine_vec_ptrs);
-                            }
-                            if (init_range_query(range_array, contents.num_ranges,
-                                contents.ops, array_index)) { // will enter if the query failed!
-                                heartbeat();
-                            }
-                            else
-                                passed = 1;
-                        }
-                        case UNISTAR : {
-
-                        }
-                        case MULTISTAR: {
-
-                        }
-                        case ITER_PRIM: {
-                            
-                        }
                     }
                 }
             }
@@ -292,9 +222,63 @@ int main(int argc, char *argv[])
         slavelist = temp;
     }
 
-    return EXIT_SUCCESS;
 }
 
+int starfish(range_query_contents contents)
+{
+    int i;
+    int num_ints_needed = 0;
+    for (i = 0; i < contents.num_ranges; i++) {
+        unsigned int *range = contents.ranges[i];
+        // each range needs this much data:
+        // number of vectors (inside parens), a machine/vector ID
+        // for each one, preceded by the number of vectors to query
+        int row_len = (range[1] - range[0] + 1) * 2 + 1;
+        num_ints_needed += row_len;
+    }
+
+    /* this array will eventually include data for the coordinator
+       slave's RPC  as described in the distributed system wiki. */
+    unsigned int *range_array = (unsigned int *)
+        malloc(sizeof(unsigned int) * num_ints_needed);
+    int array_index = 0;
+    for (i = 0; i < contents.num_ranges; i++) {
+        unsigned int *range = contents.ranges[i];
+        vec_id_t j;
+        // start of range is number of vectors
+        range_array[array_index++] = range[1] - range[0] + 1;
+        unsigned int **machine_vec_ptrs = (unsigned int **)
+            malloc(sizeof(int *) * (range[1] - range[0] + 1));
+        for (j = range[0]; j <= range[1]; j++) {
+            unsigned int *tuple = (unsigned int *)
+                malloc(sizeof(unsigned int) * 2);
+
+            tuple[0] = get_machines_for_vector(j)[0];
+            tuple[1] = j;
+            machine_vec_ptrs[j - range[0]] = tuple;
+        }
+
+        qsort(machine_vec_ptrs, range[1] - range[0],
+            sizeof(unsigned int) * 2, compare_machine_vec_tuple);
+
+        /* save machine/vec IDs into the array */
+        int tuple_index;
+        for (j = range[0]; j <= range[1]; j++) {
+            tuple_index = j - range[0];
+            range_array[array_index++] =
+                machine_vec_ptrs[tuple_index][0];
+            range_array[array_index++] =
+                machine_vec_ptrs[tuple_index][1];
+        }
+
+        for (j = range[0]; j <= range[1]; j++) {
+            free(machine_vec_ptrs[j - range[0]]);
+        }
+        free(machine_vec_ptrs);
+    }
+    return init_range_query(range_array, contents.num_ranges,
+        contents.ops, array_index);
+}
 /**
  * Send out a heartbeat to every slave. If you don't get a response, perform
  * a reallocation of the vectors it held to machines that don't already

@@ -22,7 +22,6 @@ typedef struct push_vec_args {
  * Commit the given vid:vector mappings to the given array of slaves.
  */
 int commit_vector(vec_id_t vec_id, vec_t vector, slave *slaves[], int num_slaves)
- */
 {
     /* 2PC Phase 1 on all Slaves */
     pthread_t tids[NUM_SLAVES];

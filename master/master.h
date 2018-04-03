@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include "../types/types.h"
+#include "../ipc/messages.h"
 
 /**
  * each slave will keep a linked list of vector IDs indicating which
@@ -38,5 +39,7 @@ void heartbeat(void);
 int is_alive(char *);
 unsigned int *get_machines_for_vector(unsigned int);
 int send_vector(slave *, vec_id_t, slave*);
-void reallocate();
+void reallocate(void);
+int starfish(range_query_contents);
+
 #endif /* MASTER_H */

@@ -24,6 +24,8 @@
 char *machine_failure_msg(char *);
 unsigned int slave_id;
 
+char *machine_failure_msg(char *);
+
 query_result *get_vector(u_int vec_id)
 {
     /* Turn vec_id into the filename "vec_id.dat" */
@@ -97,6 +99,7 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
     /* Our final return values. */
     u_int64_t result_val[max(this_result->vector.vector_len,
         this_result->vector.vector_len)];
+
     u_int result_len = 0;
     query_result *res = (query_result *) malloc(sizeof(query_result));
     if (query.op == '|') {
@@ -176,10 +179,6 @@ void free_res(int num_threads)
     free(results);
 }
 
-/*
- * XXX: this is a 1-Star (pipe) query
- * MultiStar and Iter-Prim require separarate functions
-*/
 query_result *
 rq_range_root_1_svc(rq_range_root_args query, struct svc_req *req)
 {
@@ -214,7 +213,7 @@ rq_range_root_1_svc(rq_range_root_args query, struct svc_req *req)
         /* allocate the appropriate number of args */
         coord_thread_args *thread_args = (coord_thread_args *)
             malloc(sizeof(coord_thread_args));
-        //coord_thread_args *thread_args;
+
         thread_args->query_result_index = i;
         thread_args->args = head_args;
 
@@ -252,6 +251,7 @@ rq_range_root_1_svc(rq_range_root_args query, struct svc_req *req)
         largest_vector_len = max(largest_vector_len,
             results[i]->vector.vector_len);
     }
+
     /* all results found! */
     res->exit_code = EXIT_SUCCESS;
     res->error_message = "";
@@ -263,6 +263,7 @@ rq_range_root_1_svc(rq_range_root_args query, struct svc_req *req)
     u_int64_t *result_vector = (u_int64_t *)
         malloc(sizeof(u_int64_t) * largest_vector_len);
     //u_int64_t result_vector[largest_vector_len];
+
     /* AND the first 2 vectors together */
     result_vector_len = AND_WAH(result_vector,
         results[0]->vector.vector_val, results[0]->vector.vector_len,

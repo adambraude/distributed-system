@@ -22,9 +22,10 @@ typedef struct push_vec_args {
  * Commit the given vid:vector mappings to the given array of slaves.
  */
 int commit_vector(vec_id_t vec_id, vec_t vector, slave *slaves[], int num_slaves)
+ */
 {
     /* 2PC Phase 1 on all Slaves */
-    pthread_t tids[num_slaves];
+    pthread_t tids[NUM_SLAVES];
     successes = 0;
     pthread_mutex_init(&lock, NULL);
 
@@ -34,6 +35,7 @@ int commit_vector(vec_id_t vec_id, vec_t vector, slave *slaves[], int num_slaves
         //printf("pthread create %s\n", slaves[i]);
         pthread_create(&tids[i], NULL, get_commit_resp, (void *)slaves[i]->address);
     }
+
     for (i = 0; i < num_slaves; i++) {
         pthread_join(tids[i], &status);
         if (status == (void *) 1) {
@@ -46,10 +48,9 @@ int commit_vector(vec_id_t vec_id, vec_t vector, slave *slaves[], int num_slaves
     if (successes != num_slaves) {
         return 1;
     }
-
     /* 2PC Phase 2 */
     i = 0;
-    for (i = 0; i < num_slaves; i++) {
+    for (i = 0; i < NUM_SLAVES; i++) {
         push_vec_args* ptr = (push_vec_args*) malloc(sizeof(push_vec_args));
         ptr->vector = vector;
         ptr->slave_addr = slaves[i]->address;

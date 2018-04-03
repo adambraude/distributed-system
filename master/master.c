@@ -192,8 +192,6 @@ int main(int argc, char *argv[])
                     commit_slaves, replication_factor);
                 if (commit_res) {
                     heartbeat();
-                }
-
             }
             else if (request->mtype == mtype_range_query) {
                 range_query_contents contents = request->range_query;

@@ -23,6 +23,7 @@ struct rq_pipe_args {
 struct query_result {
     unsigned hyper int vector<>;
     unsigned int exit_code;
+    unsigned int failed_machine_id;
     string error_message<128>;
 };
 
@@ -71,12 +72,33 @@ program TWO_PHASE_COMMIT_VEC {
     } = 1;
 } = 0x40;
 
+
 struct init_slave_args {
     unsigned int slave_id;
+    string machine_name<64>; /* (probably) its IPv4 address */
 };
 
-program INIT_SLAVE {
-    version INIT_SLAVE_V1 {
+program SETUP_SLAVE {
+    version SETUP_SLAVE_V1 {
         int INIT_SLAVE(init_slave_args) = 1;
     } = 1;
 } = 0x50;
+
+program AYA {
+    version AYA_V1 {
+        int STAYIN_ALIVE(int) = 1;
+    } = 1;
+} = 0x60;
+
+struct copy_vector_args {
+    unsigned int vec_id;
+    string destination_addr<32>;
+};
+
+program COPY_OVER_VECTOR {
+    version COPY_OVER_VECTOR_V1 {
+        /* tell this machien to hand the vector with given id to the one at
+         * the given address */
+        int SEND_VEC(copy_vector_args) = 1;
+    } = 1;
+} = 0x70;

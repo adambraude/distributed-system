@@ -22,6 +22,7 @@
 #include <string.h>
 
 char *machine_failure_msg(char *);
+unsigned int slave_id;
 
 query_result *get_vector(u_int vec_id)
 {
@@ -118,7 +119,8 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
         return res;
     }
 
-    res->vector.vector_len = result_len;
+    /* account for 0-positioned empty word */
+    res->vector.vector_len = result_len + 1;
     memcpy(res->vector.vector_val, result_val, result_len * sizeof(u_int64_t));
     res->exit_code = exit_code;
     free(this_result);
@@ -174,6 +176,10 @@ void free_res(int num_threads)
     free(results);
 }
 
+/*
+ * XXX: this is a 1-Star (pipe) query
+ * MultiStar and Iter-Prim require separarate functions
+*/
 query_result *
 rq_range_root_1_svc(rq_range_root_args query, struct svc_req *req)
 {
@@ -230,12 +236,18 @@ rq_range_root_1_svc(rq_range_root_args query, struct svc_req *req)
         // XXX: this isn't really fault tolerant for a couple reasons:
         // 1. assumes 1 failure
         // 2. none of the other results are reported. I think if one of them
-        // fails, we should at least take a partial
+        // TODO: move this to the fault tolerance branch
         if (results[i]->exit_code != EXIT_SUCCESS) {
-            for (; i < num_threads; i++) pthread_join(tids[i], NULL);
-            memcpy(res, results[i], sizeof(results[i]));
+            // for (; i < num_threads; i++) pthread_join(tids[i], NULL);
+            // memcpy(res, results[i], sizeof(results[i]));
+            // free_res(num_threads);
+            // return results[i];
+            res->exit_code = results[i]->exit_code;
+            memcpy(res->error_message, results[i]->error_message,
+                sizeof(results[i]->error_message));
+            res->failed_machine_id = results[i]->failed_machine_id;
             free_res(num_threads);
-            return results[i];
+            return res;
         }
         largest_vector_len = max(largest_vector_len,
             results[i]->vector.vector_len);
@@ -275,7 +287,7 @@ rq_range_root_1_svc(rq_range_root_args query, struct svc_req *req)
 
 #define TESTING_SLOW_PROC 0
 
-int result;
+static int result;
 
 int *commit_msg_1_svc(int message, struct svc_req *req)
 {
@@ -303,25 +315,58 @@ int *commit_vec_1_svc(struct commit_vec_args args, struct svc_req *req)
     char filename_buf[128];
     snprintf(filename_buf, 128, "v_%d.dat", args.vec_id); // XXX: function to get vector filename
     fp = fopen(filename_buf, "wb");
-    char buffer[128];
+    char buffer[1024];
+    char line_buffer[32];
     int i;
-    /* first argument should be 0, to buffer with WAHQuery.c */
+    /* first element of the should be 0, to work with WAHQuery.c
+     so don't bother storing it*/
     for (i = 1; i < args.vector.vector_len; i++) {
-        snprintf(buffer, 128, "%llx", args.vector.vector_val[i]);
-        fprintf(fp, "%s\n", buffer);
+        snprintf(line_buffer, 32, "%llx\n", args.vector.vector_val[i]);
+        strcat(buffer, line_buffer);
     }
+    fprintf(fp, "%s", buffer);
     fclose(fp);
     result = EXIT_SUCCESS;
     return &result;
 }
 
-int init_slave_1_svc(init_slave_args args, struct svc_req *req)
+int *init_slave_1_svc(init_slave_args args, struct svc_req *req)
 {
-    slave_id = args.slave_id;
-    slave_clock = create_vclock();
+    slave_id = args.slave_id; /* assign this slave its ID */
+    int result = EXIT_SUCCESS;
+    return &result;
 }
 
-char *machine_failure_msg(char *machine_name) {
+int *stayin_alive_1_svc(int x, struct svc_req *req)
+{
+    result = 0;
+    return &result;
+}
+
+/**
+ * hand the machine with the given address the vector with the given
+ * ID
+ */
+int *send_vec_1_svc(copy_vector_args copy_args, struct svc_req *req)
+{
+    CLIENT *cl = clnt_create(copy_args.destination_addr, TWO_PHASE_COMMIT_VEC,
+        TPC_COMMIT_VEC_V1, "tcp");
+    commit_vec_args args;// = (commit_vec_args *) malloc(sizeof(commit_vec_args));
+    args.vec_id = copy_args.vec_id;
+    query_result *qres = get_vector(copy_args.vec_id);
+    memcpy(&args.vector, &qres->vector, sizeof(qres->vector));
+    int result = commit_vec_1_svc(args, cl);
+    free(qres);
+    //free(args);
+    return &result;
+}
+
+/**
+ * Local helper function, returning a no-response message from the machine
+ * of the given name.
+ */
+char *machine_failure_msg(char *machine_name)
+{
     char *error_message = (char *) malloc(sizeof(char) * 64);
     snprintf(error_message, 64,
         "Error: No response from machine %s\n", machine_name);

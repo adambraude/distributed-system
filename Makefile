@@ -36,10 +36,10 @@ $(BIN)/tree_map.o:
 		$(BIN)/master_rq.o \
 		$(BIN)/master_tpc.o \
 		master/master.c \
-		-lssl -lcrypto -lm -lpthread
+		-lssl -lcrypto -lm -lpthread -lpython2.7
 
 .engine:
-	@echo "Compiling Bitmap Engine Pieces"
+	@echo "Compiling Bitmap Engine Query function"
 	@$(CC) -c -o $(BIN)/WAHQuery.o \
 		../bitmap-engine/BitmapEngine/src/wah/WAHQuery.c
 	@$(CC) -c -o $(BIN)/SegUtil.o \

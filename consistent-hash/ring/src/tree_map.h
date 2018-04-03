@@ -3,7 +3,7 @@
 
 #define NIL_HV 0
 
-typedef int cache_id;
+typedef unsigned int cache_id;
 typedef int hash_value;
 
 typedef enum {RED, BLACK} rbt_node_color;
@@ -28,7 +28,7 @@ typedef struct rbt {
 
 
 typedef struct cache {
-    int cache_id;
+    cache_id id;
     char *cache_name;
     int replication_factor;
 } cache;
@@ -37,6 +37,8 @@ void insert_cache(rbt_ptr, struct cache*);
 cache_id get_machine_for_vector(rbt_ptr, unsigned int);
 rbt_ptr new_rbt();
 void print_tree(rbt_ptr, node_ptr);
-
+cache_id *ring_get_machines_for_vector(rbt_ptr, unsigned int);
+cache_id ring_get_succ_id(rbt_ptr t, cache_id cid);
+cache_id ring_get_pred_id(rbt_ptr t, cache_id cid);
 
 #endif

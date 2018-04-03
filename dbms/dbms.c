@@ -115,7 +115,7 @@ int main(int argc, char *argv[])
         int i;
         char buf[64];
         for (i = 0; i < num_test_files; i++) {
-            snprintf(buf, 64, "../tst_data/voting_data/v_%d.dat", i);
+            snprintf(buf, 64, "../tst_data/rep-votes/voting_data/v_%d.dat", i);
             /* TODO: compress the vector (just using literals for now) */
             // blockSeg *seg = (blockSeg *) malloc(sizeof(blockSeg));
             // seg->toCompress = vector->vector;

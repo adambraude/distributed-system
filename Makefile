@@ -29,6 +29,8 @@ $(BIN)/tree_map.o:
 	@$(CC) -c -o $(BIN)/master_tpc.o \
 		master/master_tpc_vector.c
 	@echo "Compiling master main"
+	# make hash python script accessible to master
+	@cp consistent-hash/ring/src/ringhash.py $(BIN)/
 	@$(CC) -o $(BIN)/master \
 		$(RPC_BIN)/slave_clnt.o \
 		$(RPC_BIN)/slave_xdr.o \

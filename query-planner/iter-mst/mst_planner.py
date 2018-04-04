@@ -26,7 +26,7 @@ for t in query:
     needed_machines.add(t[1][1])
 """
 
-num_machines = 5
+num_machines = 10
 EXTRA_LOAD = 1
 
 # the default matrix: weight between every vertex is the same by default
@@ -54,24 +54,21 @@ def iter_mst(query):
             else: vert_vec_map[mt[0]].append(tup[0])
         # designate smallest-numbered node we'll visit as the root, or random
         root = sorted(list(vertices))[0]  #random.sample(vertices, 1)[0]) #XXX: alternatively randomize
-        tree = mst_prim(vertices, wgtfn, root, vert_vec_map)
+        tree = _mst_prim(vertices, lambda x, y: adjacency_matrix[x][y], root, vert_vec_map)
         # update adjacency matrix
-        recur_update_am(root, tree)
-        print("Root: {0}, children = {1}".format(root, tree[root].children))
+        _recur_update_am(root, tree)
+        #print("Root: {0}, children = {1}".format(root, tree[root].children))
         flipped = not flipped
         trees.append((root, tree))
     return trees
 
-def recur_update_am(root, verts):
+def _recur_update_am(root, verts):
     for child in verts[root].children:
         adjacency_matrix[root][child] += EXTRA_LOAD
         adjacency_matrix[child][root] += EXTRA_LOAD
-        recur_update_am(child, verts)
+        _recur_update_am(child, verts)
 
-def wgtfn(v1, v2):
-    return adjacency_matrix[v1][v2]
-
-def adj(verts, v):
+def _adj(verts, v):
     t = set({})
     for w in range(num_machines): # check every vertex value
         if v != w and w in verts: t.add(w)
@@ -87,7 +84,7 @@ class Vertex(object):
     def __hash__(self):
         return hash(key) ^ hash(par)
 
-def mst_prim(vertices, w, root, vector_map):
+def _mst_prim(vertices, w, root, vector_map):
     """
     Perform Prim's algorithm returning the minimum spanning tree of
     the the given vertices with weights determined by the given function,
@@ -104,7 +101,7 @@ def mst_prim(vertices, w, root, vector_map):
     heapq.heapify(queue) # TODO: replace with Fibonacci heap, for asymptotically optimal performance
     while queue != []:
         u = heapq.heappop(queue)
-        for v in adj(prim_verts, u):
+        for v in _adj(prim_verts, u):
             wgt = w(u, v)
             #print("Comparing {0} and {1}, w = {2} vs {3}, in {4}".format(u,v,wgt,prim_verts[v].key,queue))
             if wgt < prim_verts[v].key and v in queue:
@@ -115,8 +112,8 @@ def mst_prim(vertices, w, root, vector_map):
     # TODO convert children/vectors into lists, if they're easier to use in C.
     for vert in prim_verts:
         prim_verts[vert].vectors = vector_map[vert]
-        print("{0} has {1}".format(vert,vector_map[vert]))
+        #print("{0} has {1}".format(vert,vector_map[vert]))
     #print(prim_verts[root].par)
     return prim_verts
 
-iter_mst(query)
+#iter_mst(query)

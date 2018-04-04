@@ -193,7 +193,7 @@ int main(int argc, char *argv[])
                 range_query_contents contents = request->range_query;
                 switch (query_plan_t) { // TODO: fill in cases
                     case STARFISH: {
-                        while (!starfish(contents))
+                        while (starfish(contents))
                             heartbeat();
                     }
                     case UNISTAR: {

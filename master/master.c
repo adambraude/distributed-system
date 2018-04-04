@@ -139,10 +139,9 @@ int main(int argc, char *argv[])
 
         case STATIC_PARTITION: {
             int i;
-            // TODO: divide key space among the nodes
-            // take the number of keys, divide by the number of slaves, then
-            // assign each slave to a partition: keys within a particular range
-            // go to slave
+            /* divide key space among the nodes
+             * take the number of keys, divide by the number of slaves, then
+             * assign each slave to a partition */
             slave_ll *head = slavelist;
             for (i = 0; i < num_slaves; i++) {
                 partition_scale_1[i] = head->slave_node->id;
@@ -156,11 +155,12 @@ int main(int argc, char *argv[])
     /* message receipt loop */
     while (true) {
         msgctl(msq_id, IPC_STAT, &buf);
-        heartbeat(); // TODO: where exactly should this be called?
+        heartbeat(); // TODO: this can be called elsewhere
         if (buf.msg_qnum > 0) {
 
             request = (struct msgbuf *) malloc(sizeof(msgbuf));
             /* Grab from queue. */
+            // TODO fill in messages
             rc = msgrcv(msq_id, request, sizeof(msgbuf), 0, 0);
 
             /* Error Checking */
@@ -193,7 +193,7 @@ int main(int argc, char *argv[])
                 range_query_contents contents = request->range_query;
                 switch (query_plan_t) { // TODO: fill in cases
                     case STARFISH: {
-                        while(!starfish(contents))
+                        while (!starfish(contents))
                             heartbeat();
                     }
                     case UNISTAR: {
@@ -316,12 +316,6 @@ int remove_slave(unsigned int slave_id)
     num_slaves--;
     return EXIT_SUCCESS;
 }
-
-// unsigned int *plan_query()
-// {
-//     // TODO call python query planner/optimizer
-//
-// }
 
 void reallocate()
 {

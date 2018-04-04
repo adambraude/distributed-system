@@ -1,6 +1,8 @@
 #include "dbms.h"
 #include "../ipc/messages.h"
 #include "../types/types.h"
+#include "../bitmap-vector/read_vec.h"
+//#include "../../bitmap-engine/BitmapEngine/src/wah/WAHCompressor.h"
 
 #include <errno.h>
 #include <stdbool.h>
@@ -15,6 +17,16 @@
 #include <sys/wait.h>
 
 
+void
+test_put_vec(int queue_id, int vec_id, u_int64_t *vector, u_int vector_len)
+{
+    vec_t *v = (vec_t *)malloc(sizeof(vec_t));
+    memcpy(v->vector, vector, sizeof(u_int64_t) * vector_len);
+    v->vector_length = vector_len;
+    put_vector(queue_id, vec_id, v);
+}
+
+// XXX: deprecate change to: test_put_vec, of any length
 void test_put_vec_len_1(int queue_id, int vec_id, unsigned long long vec) {
     vec_t *v = (vec_t *)malloc(sizeof(vec_t));
     unsigned long long varr[] = {vec};
@@ -40,6 +52,10 @@ void test_put_vec_len_2(int queue_id, int vec_id, unsigned long long vec, unsign
  */
 int main(int argc, char *argv[])
 {
+    if (argc < 2) {
+        printf("Usage: dbms test-no\n");
+        return 1;
+    }
     printf("Starting DBMS...\n");
 
     /* SPAWN MASTER */
@@ -64,42 +80,70 @@ int main(int argc, char *argv[])
     /* Create message queue. */
     int msq_id = msgget(MSQ_KEY, MSQ_PERMISSIONS | IPC_CREAT);
 
-    /* TEST put_vector */
+    /* TESTS */
+    int test_no = atoi(argv[1]);
 
-    test_put_vec_len_1(msq_id, 1, 0x00ab);
-    test_put_vec_len_1(msq_id, 2, 0x10c0);
-    test_put_vec_len_1(msq_id, 3, 0x0781);
-    test_put_vec_len_1(msq_id, 4, 0x99ff);
+    int return_val = EXIT_SUCCESS;
+    if (test_no == BASIC_TEST) {
 
-    test_put_vec_len_1(msq_id, 5, 43776);
-    test_put_vec_len_1(msq_id, 6, 49168);
-    test_put_vec_len_1(msq_id, 7, 0x8170);
-    test_put_vec_len_1(msq_id, 8, 0xff99);
+        /* put some vectors */
+        test_put_vec_len_1(msq_id, 1, 0x00ab);
+        test_put_vec_len_1(msq_id, 2, 0x10c0);
+        test_put_vec_len_1(msq_id, 3, 0x0781);
+        test_put_vec_len_1(msq_id, 4, 0x99ff);
 
-    test_put_vec_len_2(msq_id, 9, 867, 79425);
-    test_put_vec_len_2(msq_id, 10, 867, 53102);
+        test_put_vec_len_1(msq_id, 5, 43776);
+        test_put_vec_len_1(msq_id, 6, 49168);
+        test_put_vec_len_1(msq_id, 7, 0x8170);
+        test_put_vec_len_1(msq_id, 8, 0xff99);
 
+        test_put_vec_len_2(msq_id, 9, 867, 79425);
+        test_put_vec_len_2(msq_id, 10, 867, 53102);
 
-    /* testing range query */
-    printf("Range query\n");
-    char range[] = "R:[1,4]&[5,8]";
-    range_query(msq_id, range);
-    char range2[] = "R:[1,2]&[3,4]&[5,6]";
-    range_query(msq_id, range2);
-    char range3[] = "R:[9,10]";
-    range_query(msq_id, range3);
-    int master_result = 0;
-    wait(&master_result);
+        /* testing range query */
+        char range[] = "R:[1,4]&[5,8]";
+        range_query(msq_id, range);
+        char range2[] = "R:[1,2]&[3,4]";
+        range_query(msq_id, range2);
+        char range3[] = "R:[9,10]";
+        range_query(msq_id, range3);
+
+    }
+    else if (test_no == POLITICAL_DATA_TEST) {
+        /* PUT vectors */
+        int num_test_files = 32;
+        int i;
+        char buf[64];
+        for (i = 0; i < num_test_files; i++) {
+            snprintf(buf, 64, "../tst_data/rep-votes/voting_data/v_%d.dat", i);
+            /* TODO: compress the vector (just using literals for now) */
+            // blockSeg *seg = (blockSeg *) malloc(sizeof(blockSeg));
+            // seg->toCompress = vector->vector;
+            // seg->size = vector->vector_length;
+            put_vector(msq_id, i, read_vector(buf));
+        }
+
+        /* querying */
+        //char range[] = "R:[0,3]&[4,6]&[15,18]";
+        char range[] = "R:[0,1]";
+        range_query(msq_id, range);
+    }
+    else {
+        printf("Invalid test number\n");
+        return_val = 1;
+    }
+
 
     /* CLEANING UP */
+    int master_result = 0;
+    /* Reap master. */
+    wait(&master_result);
+    printf("Master returned: %i\n", master_result);
 
     /* Destroy message queue. */
     msgctl(msq_id, IPC_RMID, NULL);
-    /* Reap master. */
 
-    printf("Master returned: %i\n", master_result);
-
-    return EXIT_SUCCESS;
+    return return_val;
 }
 
 int put_vector(int queue_id, vec_id_t vec_id, vec_t *vec)
@@ -112,9 +156,9 @@ int put_vector(int queue_id, vec_id_t vec_id, vec_t *vec)
     put->vector = *av;
 
     msgsnd(queue_id, put, sizeof(msgbuf), 0);
-    free(vec);
-    free(av);
-    free(put);
+    // free(vec);
+    // free(av);
+    // free(put);
     return EXIT_SUCCESS;
 }
 

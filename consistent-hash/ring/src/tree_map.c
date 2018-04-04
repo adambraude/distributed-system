@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include "tree_map.h"
 #include <math.h>
+#include </usr/include/python2.7/Python.h>
 
 /* RBT op prototypes */
 /* RBT initialization functions */
@@ -29,14 +30,16 @@ node_ptr rbt_min(rbt_ptr, node_ptr);
 node_ptr rbt_max(rbt_ptr, node_ptr);
 void rbt_delete(rbt_ptr, node_ptr);
 void rbt_delete_fixup(rbt_ptr, node_ptr);
+node_ptr pred(rbt_ptr, hash_value);
+node_ptr get_node_with_hv(rbt_ptr, hash_value);
 
 /*
  * The cache_id of the node n in the tree with the smallest hash_value hv
  * such that n.hv > value.
  */
-cache_id succ(rbt_ptr t, hash_value value);
-cache_id recur_succ(rbt_ptr t, node_ptr root, node_ptr suc, hash_value value);
-uint64_t hash(unsigned int);
+node_ptr succ(rbt_ptr t, hash_value value);
+node_ptr recur_succ(rbt_ptr t, node_ptr root, node_ptr suc, hash_value value);
+uint64_t hash(unsigned long);
 
 
 /**
@@ -47,23 +50,82 @@ void insert_cache(rbt_ptr t, struct cache* cptr)
 {
     int i;
     for (i = 0; i < cptr->replication_factor; i++) {
-        rbt_insert(t, new_node(t, cptr->cache_id, hash(cptr->cache_id), RED));
+        rbt_insert(t, new_node(t, cptr->id, hash(cptr->id), RED));
     }
 }
 
-cache_id get_machine_for_vector(rbt_ptr t, unsigned int vec_id)
+static int replication_factor = 2;
+
+cache_id *ring_get_machines_for_vector(rbt_ptr t, unsigned int vec_id)
 {
-    //printf("vid = %d, h(vid) = %d\n", vec_id, hash(vec_id));
-    return succ(t, hash(vec_id));
+    // ideally this should be a for-loop
+    node_ptr n1 = succ(t, hash(vec_id));
+    node_ptr n2 = succ(t, hash(vec_id + 1));
+    cache_id *res = (cache_id *) malloc(sizeof(cache_id) * replication_factor);
+    res[0] = n1->cid;
+    res[1] = n2->cid;
+    return res;
 }
 
-cache_id succ(rbt_ptr t, hash_value value)
+cache_id ring_get_succ_id(rbt_ptr t, cache_id cid)
+{
+    return succ(t, hash(cid))->cid;
+}
+
+cache_id ring_get_pred_id(rbt_ptr t, cache_id cid)
+{
+    return pred(t, hash(cid))->cid;
+}
+
+// TODO: predecessor node function
+// TODO: get node with particular key function
+/**
+ * returns the node in the tree that's the predecessor to the node
+ * with the given key (assumes there exists a node with such a key in the tree)
+ */
+node_ptr pred(rbt_ptr t, hash_value value)
+{
+    node_ptr n = t->root;
+    node_ptr pr = NULL;
+    while (n->hv != value) {
+        if (value > n->hv) {
+            pr = n;
+            n = n->right;
+        }
+        else {
+            n = n->left;
+        }
+    }
+    if (n == rbt_min(t, t->root)) return rbt_max(t, t->root);
+    if (pr == NULL) { // we didn't go right: find rightmost node of left subtree
+        pr = n->left;
+        while (pr->right != NULL) pr = pr->right;
+    }
+    return pr;
+}
+
+node_ptr succ(rbt_ptr t, hash_value value)
 {
     node_ptr curr = t->root;
     if (value >= rbt_max(t, curr)->hv) {
-        return rbt_min(t, curr)->cid;
+        return rbt_min(t, curr);
     }
     return recur_succ(t, t->root, t->root, value);
+}
+
+node_ptr get_node_with_hv(rbt_ptr t, hash_value hv)
+{
+    node_ptr res = t->root;
+    while (res->hv != hv) {
+        if (res->hv < hv) res = res->right;
+        else res = res->left;
+    }
+    return res;
+}
+
+void delete_entry(rbt_ptr t, hash_value hv)
+{
+    rbt_delete(t, get_node_with_hv(t, hv));
 }
 
 void print_tree(rbt_ptr t, node_ptr c)
@@ -76,10 +138,10 @@ void print_tree(rbt_ptr t, node_ptr c)
     print_tree(t, c->left);
 }
 
-cache_id recur_succ(rbt_ptr t, node_ptr root, node_ptr suc, hash_value value)
+node_ptr recur_succ(rbt_ptr t, node_ptr root, node_ptr suc, hash_value value)
 {
     if (root == t->nil) {
-        return suc->cid;
+        return suc;
     }
     if (value == root->hv) {
         /* return leftmost node of right subtree */
@@ -89,12 +151,12 @@ cache_id recur_succ(rbt_ptr t, node_ptr root, node_ptr suc, hash_value value)
             while (suc->parent != t->nil && suc->hv < value) {
                 suc = suc->parent;
             }
-            return suc->cid;
+            return suc;
         }
         while (suc->left != t->nil) {
             suc = suc->left;
         }
-        return suc->cid;
+        return suc;
     }
     if (root->hv > value) {
         suc = root;
@@ -364,18 +426,35 @@ void rbt_delete_fixup(rbt_ptr t, node_ptr x)
     x->color = BLACK;
 }
 
-uint64_t hash(unsigned int key)
+// TODO: call Python hash function instead
+uint64_t hash(unsigned long key)
 {
-    const unsigned char ibuf[256];
-    sprintf((char *) ibuf, "%d", key);
-    unsigned char obuf[256];
-    SHA256(ibuf, strlen((const char *)ibuf), obuf);
-    int i;
-    unsigned long long digest = 0;
-    int s = strlen((const char *)obuf);
-    for (i = 0; i < s; i++) {
-        digest += (unsigned long long )(fabs(pow(2.0, (double)i) ) * (obuf[i]));
+    u_int64_t digest = 0;
+    Py_Initialize();
+    PyObject *pName, *pModule;
+    PySys_SetPath(".");
+    pName = PyString_FromString("ringhash");
+    pModule = PyImport_Import(pName);
+    if (pModule != NULL) {
+        PyObject *pyArg, *pFunc, *pValue;
+        pyArg = PyInt_FromLong(key);
+        pFunc = PyObject_GetAttrString(pModule, "ringhash");
+        pValue = PyObject_CallFunctionObjArgs(pFunc, pyArg, NULL);
+        digest = PyInt_AsLong(pValue);
     }
+    else { // couldn't find python module, use C
+        const unsigned char ibuf[256];
+        sprintf((char *) ibuf, "%lu", key);
+        unsigned char obuf[256];
+        SHA256(ibuf, strlen((const char *)ibuf), obuf);
+        int i;
+        unsigned long long digest = 0;
+        int s = strlen((const char *)obuf);
+        for (i = 0; i < s; i++) {
+            digest += (unsigned long long )(fabs(pow(2.0, (double)i) ) * (obuf[i]));
+        }
+    }
+    Py_Finalize();
     return digest;
 }
 

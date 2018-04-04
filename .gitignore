@@ -3,3 +3,6 @@ bin/
 
 # rpcgen output
 gen/
+
+# python output
+__pycache__

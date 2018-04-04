@@ -1,12 +1,11 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "tpc_master.h"
 #include "../rpc/vote.h"
 #include "../rpc/gen/slave.h"
-// FIXME: should NOT have to import C files
 
-#include "../types/types.h"
 #include "slavelist.h"
 pthread_mutex_t lock;
 int successes;
@@ -18,12 +17,12 @@ typedef struct push_vec_args {
     char *slave_addr;
 } push_vec_args;
 
+// TODO move all master RPC functions into one file
+
 /*
- * Commit the given vid:vector mappings to the given slaves.
- * TODO: generalize this: have it take a set of machines instead, since they
- * might not be available
+ * Commit the given vid:vector mappings to the given array of slaves.
  */
-int commit_vector(vec_id_t vec_id, vec_t vector)
+int commit_vector(vec_id_t vec_id, vec_t vector, slave *slaves[], int num_slaves)
 {
     /* 2PC Phase 1 on all Slaves */
     pthread_t tids[NUM_SLAVES];
@@ -32,11 +31,12 @@ int commit_vector(vec_id_t vec_id, vec_t vector)
 
     int i;
     void *status = 0;
-    for (i = 0; i < NUM_SLAVES; i++) {
+    for (i = 0; i < num_slaves; i++) {
         //printf("pthread create %s\n", slaves[i]);
-        pthread_create(&tids[i], NULL, get_commit_resp, (void *)SLAVE_ADDR[i]);
+        pthread_create(&tids[i], NULL, get_commit_resp, (void *)slaves[i]->address);
     }
-    for (i = 0; i < NUM_SLAVES; i++) {
+
+    for (i = 0; i < num_slaves; i++) {
         pthread_join(tids[i], &status);
         if (status == (void *) 1) {
             printf("Failed to connect to all slaves.\n");
@@ -45,14 +45,15 @@ int commit_vector(vec_id_t vec_id, vec_t vector)
     }
 
     /* check if all slaves can commit */
-    if (successes != NUM_SLAVES) return 1;
-
+    if (successes != num_slaves) {
+        return 1;
+    }
     /* 2PC Phase 2 */
     i = 0;
     for (i = 0; i < NUM_SLAVES; i++) {
         push_vec_args* ptr = (push_vec_args*) malloc(sizeof(push_vec_args));
         ptr->vector = vector;
-        ptr->slave_addr = SLAVE_ADDR[i];
+        ptr->slave_addr = slaves[i]->address;
         ptr->vec_id = vec_id;
         pthread_create(&tids[i], NULL, push_vector, (void*) ptr);
     }
@@ -117,4 +118,70 @@ void *push_vector(void *thread_arg)
     }
     printf("Commit succeeded.\n");
     return (void*) 0;
+}
+
+/**
+ *  Connect to the slave process at the given address, returning a new slave.
+ */
+int setup_slave(slave *slv)
+{
+    CLIENT *cl = clnt_create(slv->address, SETUP_SLAVE, SETUP_SLAVE_V1,
+        "tcp");
+    if (cl == NULL) {
+        printf("Error: couldn't connect\n");
+        return 1;
+    }
+    init_slave_args *args = (init_slave_args *) malloc(sizeof(init_slave_args));
+    args->machine_name = slv->address;
+    args->slave_id = slv->id;
+    int *res = init_slave_1(*args, cl);
+    free(args);
+    clnt_destroy(cl);
+    if (*res) {
+        printf("Failed to setup slave\n");
+        return 1;
+    }
+    return 0;
+}
+
+/**
+ * Ask the slave at the given node if it's alive
+ */
+int is_alive(char *address)
+{
+    CLIENT *cl = clnt_create(address, AYA, AYA_V1, "tcp");
+    if (cl == NULL) {
+        return 1;
+    }
+    struct timeval tv;
+    tv.tv_sec = 1; // TODO: it is important to come up with a reasonable value for this!
+    tv.tv_usec = 0;
+    clnt_control(cl, CLSET_TIMEOUT, &tv);
+    int *res = stayin_alive_1(0, cl);
+    if (*res) {
+        return 1;
+    }
+    clnt_destroy(cl);
+    return 0;
+}
+
+int send_vector(slave *slave_1, vec_id_t vec_id, slave *slave_2)
+{
+    CLIENT *cl = clnt_create(slave_1->address, COPY_OVER_VECTOR,
+        COPY_OVER_VECTOR_V1, "tcp");
+    if (cl == NULL) {
+        return 1;
+    }
+    struct timeval tv;
+    tv.tv_sec = 1; // TODO: it is important to come up with a reasonable value for this!
+    tv.tv_usec = 0;
+    clnt_control(cl, CLSET_TIMEOUT, &tv);
+    copy_vector_args args;
+    args.vec_id = vec_id;
+    char *addr = slave_2->address;
+    memcpy(args.destination_addr, addr, (strlen(addr) + 1) * sizeof(char));
+    int *res = send_vec_1(args, cl);
+    clnt_destroy(cl);
+    //free(args);
+    return *res;
 }

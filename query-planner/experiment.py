@@ -8,10 +8,9 @@ sys.path.insert(0, './iter-mst/')
 import mst_planner
 
 sys.path.insert(0, './stars/')
-import path_star, uni_star, multi_star
+import uni_star, multi_star
 
 exp_fns = [
-    path_star.planner,
     uni_star.planner,
     multi_star.planner,
     mst_planner.iter_mst,

@@ -6,3 +6,6 @@ gen/
 
 # python output
 __pycache__
+
+# macOS Finder file
+.DS_Store

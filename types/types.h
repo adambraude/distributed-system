@@ -3,7 +3,7 @@
  */
 #ifndef TYPES_H
 #define TYPES_H
-#define MAX_VECTOR_LEN 32
+#define MAX_VECTOR_LEN 128
 typedef struct vec_t {
     unsigned long long vector[MAX_VECTOR_LEN];
     unsigned int vector_length;

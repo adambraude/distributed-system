@@ -60,18 +60,12 @@ struct commit_vec_args {
     unsigned hyper int vector<>;
 };
 
-program TWO_PHASE_COMMIT_VOTE {
-    version TWO_PHASE_COMMIT_VOTE_V1 {
+program TWO_PHASE_COMMIT {
+    version TWO_PHASE_COMMIT_V1 {
         int COMMIT_MSG(int x) = 1;
+        int COMMIT_VEC(struct commit_vec_args) = 2;
     } = 1;
 } = 0x30;
-
-program TWO_PHASE_COMMIT_VEC {
-    version TPC_COMMIT_VEC_V1 {
-        int COMMIT_VEC(struct commit_vec_args) = 1;
-    } = 1;
-} = 0x40;
-
 
 struct init_slave_args {
     unsigned int slave_id;

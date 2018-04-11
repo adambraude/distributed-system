@@ -18,7 +18,8 @@ typedef struct slave {
     unsigned int id;
     char *address;
     bool is_alive;
-    slave_vector *vectors;
+    slave_vector *primary_vector_head; /* vectors that were assigned to this slave */
+    slave_vector *primary_vector_tail;
 } slave;
 
 typedef struct slave_ll {
@@ -35,8 +36,8 @@ static int replication_factor = 2;
 /* master function prototypes */
 int setup_slave(slave*);
 slave *new_slave(char*);
-void heartbeat(void);
-int is_alive(char *);
+int heartbeat(void);
+bool is_alive(char *);
 unsigned int *get_machines_for_vector(unsigned int);
 int send_vector(slave *, vec_id_t, slave*);
 void reallocate(void);

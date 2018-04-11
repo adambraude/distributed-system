@@ -25,7 +25,7 @@ typedef struct push_vec_args {
 int commit_vector(vec_id_t vec_id, vec_t vector, slave *slaves[], int num_slaves)
 {
     /* 2PC Phase 1 on all Slaves */
-    pthread_t tids[NUM_SLAVES];
+    pthread_t tids[num_slaves];
     successes = 0;
     pthread_mutex_init(&lock, NULL);
 
@@ -33,7 +33,8 @@ int commit_vector(vec_id_t vec_id, vec_t vector, slave *slaves[], int num_slaves
     void *status = 0;
     for (i = 0; i < num_slaves; i++) {
         //printf("pthread create %s\n", slaves[i]);
-        pthread_create(&tids[i], NULL, get_commit_resp, (void *)slaves[i]->address);
+        pthread_create(&tids[i], NULL, get_commit_resp,
+            (void *) slaves[i]->address);
     }
 
     for (i = 0; i < num_slaves; i++) {
@@ -68,10 +69,9 @@ int commit_vector(vec_id_t vec_id, vec_t vector, slave *slaves[], int num_slaves
 void *get_commit_resp(void *slv_addr_arg)
 {
     char *slv_addr = (char *) slv_addr_arg;
-    printf("Connecting to %s\n", slv_addr);
-    CLIENT* clnt = clnt_create(slv_addr, TWO_PHASE_COMMIT_VOTE,
-        TWO_PHASE_COMMIT_VOTE_V1, "tcp");
-
+    printf("Connecting to %s, creating clnt\n", slv_addr);
+    CLIENT *clnt = clnt_create(slv_addr, TWO_PHASE_COMMIT,
+        TWO_PHASE_COMMIT_V1, "tcp");
     if (clnt == NULL) {
         printf("Error: could not connect to slave %s.\n", slv_addr);
         pthread_exit((void*) 1);
@@ -82,7 +82,6 @@ void *get_commit_resp(void *slv_addr_arg)
     tv.tv_usec = 0;
     clnt_control(clnt, CLSET_TIMEOUT, &tv);
     int *result = commit_msg_1(0, clnt);
-
     if (result == NULL || *result == VOTE_ABORT) {
         printf("Couldn't commit at slave %s.\n", slv_addr);
     }
@@ -98,8 +97,8 @@ void *get_commit_resp(void *slv_addr_arg)
 void *push_vector(void *thread_arg)
 {
     push_vec_args *args = (push_vec_args *) thread_arg;
-    CLIENT* cl = clnt_create(args->slave_addr, TWO_PHASE_COMMIT_VEC,
-        TPC_COMMIT_VEC_V1, "tcp");
+    CLIENT* cl = clnt_create(args->slave_addr, TWO_PHASE_COMMIT,
+        TWO_PHASE_COMMIT_V1, "tcp");
 
     if (cl == NULL) {
         printf("Error: could not connect to slave %s.\n", args->slave_addr);
@@ -131,9 +130,14 @@ int setup_slave(slave *slv)
         printf("Error: couldn't connect\n");
         return 1;
     }
-    init_slave_args *args = (init_slave_args *) malloc(sizeof(init_slave_args));
+    init_slave_args *args = (init_slave_args *)
+        malloc(sizeof(init_slave_args));
     args->machine_name = slv->address;
     args->slave_id = slv->id;
+    struct timeval tv;
+    tv.tv_sec = 1; // TODO: it is important to come up with a reasonable value for this!
+    tv.tv_usec = 0;
+    clnt_control(cl, CLSET_TIMEOUT, &tv);
     int *res = init_slave_1(*args, cl);
     free(args);
     clnt_destroy(cl);
@@ -147,11 +151,11 @@ int setup_slave(slave *slv)
 /**
  * Ask the slave at the given node if it's alive
  */
-int is_alive(char *address)
+bool is_alive(char *address)
 {
     CLIENT *cl = clnt_create(address, AYA, AYA_V1, "tcp");
     if (cl == NULL) {
-        return 1;
+        return false;
     }
     struct timeval tv;
     tv.tv_sec = 1; // TODO: it is important to come up with a reasonable value for this!
@@ -159,10 +163,10 @@ int is_alive(char *address)
     clnt_control(cl, CLSET_TIMEOUT, &tv);
     int *res = stayin_alive_1(0, cl);
     if (*res) {
-        return 1;
+        return false;
     }
     clnt_destroy(cl);
-    return 0;
+    return true;
 }
 
 int send_vector(slave *slave_1, vec_id_t vec_id, slave *slave_2)
@@ -179,7 +183,8 @@ int send_vector(slave *slave_1, vec_id_t vec_id, slave *slave_2)
     copy_vector_args args;
     args.vec_id = vec_id;
     char *addr = slave_2->address;
-    memcpy(args.destination_addr, addr, (strlen(addr) + 1) * sizeof(char));
+    args.destination_addr = (char *) malloc(sizeof(addr));
+    strcpy(args.destination_addr, addr);
     int *res = send_vec_1(args, cl);
     clnt_destroy(cl);
     //free(args);

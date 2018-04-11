@@ -81,5 +81,5 @@ basic_test: all
 # Voting data test
 vd_test: all
 	@echo "Creating test data..."
-	@cd tst_data && python3 convert_voting_data.py
+	@cd tst_data/rep-votes && python3 convert_voting_data.py
 	@cd bin/ && ./dbms 1

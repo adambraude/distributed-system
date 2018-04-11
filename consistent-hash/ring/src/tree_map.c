@@ -59,11 +59,13 @@ static int replication_factor = 2;
 cache_id *ring_get_machines_for_vector(rbt_ptr t, unsigned int vec_id)
 {
     // ideally this should be a for-loop
-    node_ptr n1 = succ(t, hash(vec_id));
-    node_ptr n2 = succ(t, hash(vec_id + 1));
+    // node_ptr n1 = succ(t, hash(vec_id));
+    // node_ptr n2 = succ(t, hash(vec_id + 1));
     cache_id *res = (cache_id *) malloc(sizeof(cache_id) * replication_factor);
-    res[0] = n1->cid;
-    res[1] = n2->cid;
+    node_ptr primary_node = succ(t, hash(vec_id));
+    node_ptr backup_node = succ(t, primary_node->hv);
+    res[0] = primary_node->cid;
+    res[1] = backup_node->cid;
     return res;
 }
 

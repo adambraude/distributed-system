@@ -235,7 +235,8 @@ rq_range_root_1_svc(rq_range_root_args query, struct svc_req *req)
         if (results[i]->exit_code != EXIT_SUCCESS) {
             res->exit_code = results[i]->exit_code;
             char *msg = results[i]->error_message;
-            memcpy(res->error_message, msg, (strlen(msg) + 1) * sizeof(char));
+            res->error_message = (char *) malloc(sizeof(msg));
+            strcpy(res->error_message, msg);
             res->failed_machine_id = results[i]->failed_machine_id;
             free_res(num_threads);
             return res;
@@ -327,6 +328,7 @@ int *init_slave_1_svc(init_slave_args args, struct svc_req *req)
 {
     slave_id = args.slave_id; /* assign this slave its ID */
     result = EXIT_SUCCESS;
+    printf("Registered slave %d\n", slave_id);
     return &result;
 }
 
@@ -342,8 +344,8 @@ int *stayin_alive_1_svc(int x, struct svc_req *req)
  */
 int *send_vec_1_svc(copy_vector_args copy_args, struct svc_req *req)
 {
-    CLIENT *cl = clnt_create(copy_args.destination_addr, TWO_PHASE_COMMIT_VEC,
-        TPC_COMMIT_VEC_V1, "tcp");
+    CLIENT *cl = clnt_create(copy_args.destination_addr, TWO_PHASE_COMMIT,
+        TWO_PHASE_COMMIT_V1, "tcp");
     commit_vec_args args;
     args.vec_id = copy_args.vec_id;
     query_result *qres = get_vector(copy_args.vec_id);

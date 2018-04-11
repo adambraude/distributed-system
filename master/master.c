@@ -16,7 +16,7 @@
 #include <sys/ipc.h>
 #include <sys/types.h>
 
-#define MS_DEBUG true
+#define MS_DEBUG false
 
 /* variables for use in all master functions */
 slave_ll *slavelist;
@@ -135,7 +135,7 @@ int main(int argc, char *argv[])
     /* message receipt loop */
     while (true) {
         msgctl(msq_id, IPC_STAT, &buf);
-        puts("beating heart");
+        //puts("beating heart");
         if (heartbeat()) return 1; // TODO: this can be called elsewhere
         if (buf.msg_qnum > 0) {
             request = (struct msgbuf *) malloc(sizeof(msgbuf));

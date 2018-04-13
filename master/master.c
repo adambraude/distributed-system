@@ -3,6 +3,7 @@
 #include "master_rq.h"
 #include "slavelist.h"
 #include "../consistent-hash/ring/src/tree_map.h"
+#include "../consistent-hash/jump/src/jump.h"
 #include "../types/types.h"
 
 #include <errno.h>
@@ -340,8 +341,19 @@ unsigned int *get_machines_for_vector(vec_id_t vec_id)
         }
 
         case JUMP_CH: {
-            // TODO Jahrme
-            return NULL;
+            unsigned int *machines = (unsigned int *)
+                malloc(sizeof(unsigned int) * replication_factor);
+
+            int first_slave = jump_consistent_hash(vec_id, num_slaves);
+
+            assert(0 <= first_slave && first_slave < num_slaves);
+
+            int i;
+            for(i = 0; i < replication_factor; i++) {
+                machines[i] = (first_slave + i) % num_slaves;
+            }
+
+            return machines;
         }
 
         case STATIC_PARTITION: {

@@ -18,11 +18,16 @@ $(BIN)/tree_map.o:
 	@$(CC) -c -o $(BIN)/tree_map.o \
 		consistent-hash/ring/src/tree_map.c
 
+$(BIN)/jump.o:
+	@echo "Compiling jump consistent hashing"
+	@$(CC) -c -o $(BIN)/jump.o \
+		consistent-hash/jump/src/jump.c
+
 .rpc:
 	@echo "Compiling RPC modules"
 	@cd rpc && make
 
-.master: .slave .rpc $(BIN)/tree_map.o
+.master: .slave .rpc $(BIN)/tree_map.o $(BIN)/jump.o
 	@echo "Compiling Master"
 	@$(CC) -c -o $(BIN)/master_rq.o \
 		master/master_rq.c
@@ -34,6 +39,7 @@ $(BIN)/tree_map.o:
 		$(RPC_BIN)/slave_clnt.o \
 		$(RPC_BIN)/slave_xdr.o \
 		$(BIN)/tree_map.o \
+		$(BIN)/jump.o \
 		$(BIN)/master_rq.o \
 		$(BIN)/master_tpc.o \
 		master/master.c \

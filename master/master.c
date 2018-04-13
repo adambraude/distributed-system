@@ -75,6 +75,7 @@ int main(int argc, char *argv[])
             printf("MASTER: Could not register machine %s",
                 SLAVE_ADDR[i]);
             // dealloc(slavelist)
+            //exit(1);
             return EXIT_FAILURE;
             // s->is_alive = false;
             // dead_slave = s;

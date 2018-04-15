@@ -318,7 +318,7 @@ int *commit_vec_1_svc(struct commit_vec_args args, struct svc_req *req)
     /* first element of the should be 0, to work with WAHQuery.c
      so don't bother storing it*/
     for (i = 1; i < args.vector.vector_len; i++) {
-        printf("Vector val: %llu", args.vector.vector_val[i]);
+        //printf("Vector val: %llu", args.vector.vector_val[i]);
         snprintf(line_buffer, 32, "%llx\n", args.vector.vector_val[i]);
         strcat(buffer, line_buffer);
     }

@@ -278,7 +278,7 @@ int heartbeat()
         if (!is_alive(addr)) {
             printf("Machine %s failed\n", addr);
             remove_slave(id);
-            if (num_slaves) {
+            if (num_slaves == 0) {
                 puts("MASTER: there are no more slaves");
                 return 1;
             }

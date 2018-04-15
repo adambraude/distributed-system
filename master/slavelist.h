@@ -14,14 +14,14 @@
 
 //#define LOCALTEST
 #define FULL_TEST
-//#define DBCAP_1_TEST
+//#define DBCAP_2_TEST
 
-// #ifdef DBCAP_1_TEST
-//     #define NUM_SLAVES 1
-//     static char SLAVE_ADDR[NUM_SLAVES][32] = {
-//         DB_CAPSTONE_1_ADDR
-//     };
-// #endif /* DBCAP_1_TEST */
+#ifdef DBCAP_2_TEST
+    #define NUM_SLAVES 1
+    static char SLAVE_ADDR[NUM_SLAVES][32] = {
+        DBCAP2_ADDR
+    };
+#endif /* DBCAP_1_TEST */
 
 #ifdef LOCALTEST
     #define NUM_SLAVES 1

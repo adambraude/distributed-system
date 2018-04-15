@@ -310,7 +310,10 @@ int *commit_vec_1_svc(struct commit_vec_args args, struct svc_req *req)
     snprintf(filename_buf, 128, "v_%d.dat", args.vec_id); // TODO: function to get vector filename
     fp = fopen(filename_buf, "wb");
     char buffer[1024];
+    memset(buffer, 0, 1024);
+    buffer[0] = '\0';
     char line_buffer[32];
+    memset(line_buffer, 0, 32);
     int i;
     /* first element of the should be 0, to work with WAHQuery.c
      so don't bother storing it*/

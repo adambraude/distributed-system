@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
         slave *s = new_slave(SLAVE_ADDR[i]); // TODO: when we use CLI args, change this array
         printf("Setting up\n");
         if (setup_slave(s)) { // could not connect
-            printf("MASTER: Could not register machine %s",
+            printf("MASTER: Could not register machine %s\n",
                 SLAVE_ADDR[i]);
             // dealloc(slavelist)
             //exit(1);

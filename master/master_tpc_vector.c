@@ -107,7 +107,8 @@ void *push_vector(void *thread_arg)
 
     commit_vec_args *a = (commit_vec_args*) malloc(sizeof(commit_vec_args));
     a->vec_id = args->vec_id;
-    a->vector.vector_val = args->vector.vector;
+    //a->vector.vector_val = args->vector.vector;
+    memcpy(a->vector.vector_val, args->vector.vector, sizeof(u_int64_t) * args->vector.vector_length);
     a->vector.vector_len = args->vector.vector_length;
     int *result = commit_vec_1(*a, cl);
 

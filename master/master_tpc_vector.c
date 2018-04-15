@@ -51,14 +51,14 @@ int commit_vector(vec_id_t vec_id, vec_t vector, slave *slaves[], int num_slaves
     }
     /* 2PC Phase 2 */
     i = 0;
-    for (i = 0; i < NUM_SLAVES; i++) {
+    for (i = 0; i < num_slaves; i++) {
         push_vec_args* ptr = (push_vec_args*) malloc(sizeof(push_vec_args));
         ptr->vector = vector;
         ptr->slave_addr = slaves[i]->address;
         ptr->vec_id = vec_id;
         pthread_create(&tids[i], NULL, push_vector, (void*) ptr);
     }
-    for (i = 0; i < NUM_SLAVES; i++) {
+    for (i = 0; i < num_slaves; i++) {
         pthread_join(tids[i], NULL);
     }
 

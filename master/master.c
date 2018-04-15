@@ -53,6 +53,7 @@ int main(int argc, char *argv[])
     /* Connect to message queue. */
     printf("inside master\n");
     partition_t = RING_CH;
+    query_plan_t = STARFISH;
     int msq_id = msgget(MSQ_KEY, MSQ_PERMISSIONS | IPC_CREAT);
     /* Container for messages. */
     struct msgbuf *request;
@@ -76,7 +77,7 @@ int main(int argc, char *argv[])
                 SLAVE_ADDR[i]);
             // dealloc(slavelist)
             //exit(1);
-            return EXIT_FAILURE;
+            //return EXIT_FAILURE;
             // s->is_alive = false;
             // dead_slave = s;
             // num_living_slaves--;
@@ -155,19 +156,19 @@ int main(int argc, char *argv[])
             if (request->mtype == mtype_put) {
                 slave *commit_slaves[replication_factor];
                 unsigned int *slave_ids =
-                    get_machines_for_vector(request->vector.vec_id);
+                    get_machines_for_vector(request->vector.vec_id, true);
                 slave_ll *head = slavelist;
                 int cs_index = 0;
-                for (i = 0; i < num_slaves; i++) {
+                while (head != NULL) {
                     if (head->slave_node->id == slave_ids[0] ||
                         head->slave_node->id == slave_ids[1])
                         commit_slaves[cs_index++] = head->slave_node;
-                    if (cs_index == replication_factor - 1) break;
+                    if (cs_index == replication_factor) break;
                     head = head->next;
                 }
                 puts("commiting...");
                 int commit_res = commit_vector(request->vector.vec_id, request->vector.vec,
-                    commit_slaves, num_slaves);
+                    commit_slaves, replication_factor);
                 if (commit_res) {
                     heartbeat();
 
@@ -236,11 +237,7 @@ int starfish(range_query_contents contents)
         unsigned int **machine_vec_ptrs = (unsigned int **)
             malloc(sizeof(int *) * (range[1] - range[0] + 1));
         for (j = range[0]; j <= range[1]; j++) {
-            unsigned int *tuple = (unsigned int *)
-                malloc(sizeof(unsigned int) * 2);
-
-            tuple[0] = get_machines_for_vector(j)[0];
-            tuple[1] = j;
+            unsigned int *tuple = get_machines_for_vector(j, false);
             machine_vec_ptrs[j - range[0]] = tuple;
         }
 
@@ -361,28 +358,30 @@ void reallocate()
  * Returns replication_factor (currently, hard at 2)-tuple of vectors such
  * that t = (m1, m2) and m1 != m2 if there at least 2 slaves available.
  */
-unsigned int *get_machines_for_vector(vec_id_t vec_id)
+unsigned int *get_machines_for_vector(vec_id_t vec_id, bool updating)
 {
     switch (partition_t) {
         case RING_CH: {
             unsigned int *tr = ring_get_machines_for_vector(chash_table, vec_id);
-            // update this slave's primary vectors
-            slave_ll *head = slavelist;
-            while (head->slave_node->id != tr[0]) head = head->next;
-            slave *slv = head->slave_node;
-            // update this slave's primary vector list
-            if (slv->primary_vector_head == NULL) { /* insert it at the head and tail */
-                slv->primary_vector_head = (slave_vector *) malloc(sizeof(slave_vector));
-                slv->primary_vector_head->id = vec_id;
-                slv->primary_vector_head->next = NULL;
-                slv->primary_vector_tail = slv->primary_vector_tail;
-            }
-            else { /* insert it at the tail */
-                slave_vector *vec = (slave_vector *) malloc(sizeof(slave_vector));
-                slv->primary_vector_tail->next = vec;
-                slv->primary_vector_tail = vec;
-                vec->id = vec_id;
-                vec->next = NULL;
+            if (updating) {
+                // update this slave's primary vectors
+                slave_ll *head = slavelist;
+                while (head->slave_node->id != tr[0]) head = head->next;
+                slave *slv = head->slave_node;
+                // update this slave's primary vector list
+                if (slv->primary_vector_head == NULL) { /* insert it at the head and tail */
+                    slv->primary_vector_head = (slave_vector *) malloc(sizeof(slave_vector));
+                    slv->primary_vector_head->id = vec_id;
+                    slv->primary_vector_head->next = NULL;
+                    slv->primary_vector_tail = slv->primary_vector_head;
+                }
+                else { /* insert it at the tail */
+                    slave_vector *vec = (slave_vector *) malloc(sizeof(slave_vector));
+                    slv->primary_vector_tail->next = vec;
+                    slv->primary_vector_tail = vec;
+                    vec->id = vec_id;
+                    vec->next = NULL;
+                }
             }
             return tr;
         }

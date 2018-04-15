@@ -357,6 +357,7 @@ void reallocate()
 /**
  * Returns replication_factor (currently, hard at 2)-tuple of vectors such
  * that t = (m1, m2) and m1 != m2 if there at least 2 slaves available.
+ * If this is a *new* vector, updating should be true, false otherwise.
  */
 unsigned int *get_machines_for_vector(vec_id_t vec_id, bool updating)
 {

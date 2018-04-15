@@ -132,6 +132,7 @@ int main(int argc, char *argv[])
             break;
         }
     }
+    puts("entering msg loop");
 
     /* message receipt loop */
     while (true) {
@@ -164,10 +165,13 @@ int main(int argc, char *argv[])
                     if (cs_index == replication_factor - 1) break;
                     head = head->next;
                 }
+                puts("commiting...");
                 int commit_res = commit_vector(request->vector.vec_id, request->vector.vec,
                     commit_slaves, num_slaves);
-                if (commit_res)
+                if (commit_res) {
                     heartbeat();
+
+                }
                 puts("finished put");
             }
             else if (request->mtype == mtype_range_query) {

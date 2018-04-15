@@ -142,7 +142,7 @@ int setup_slave(slave *slv)
     free(args);
     clnt_destroy(cl);
     if (*res) {
-        printf("Failed to setup slave\n");
+        printf("RPC: Failed to initialize slave %s\n", slv->address);
         return 1;
     }
     return 0;

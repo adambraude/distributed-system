@@ -4,8 +4,8 @@
 #define DBC1_ADDR "10.250.94.63"
 #define DBC2_ADDR "10.250.94.56"
 #define DBC3_ADDR "10.250.94.72"
-#define DBC4_ADDR "10.250.94.80"
-#define DBC5_ADDR "10.250.94.69"
+#define DBC4_ADDR "10.250.94.69"
+#define DBC5_ADDR "10.250.94.80"
 #define DBC6_ADDR "10.250.94.64"
 #define DBC7_ADDR "10.250.94.77"
 #define DBC8_ADDR "10.250.94.75"
@@ -23,19 +23,23 @@
 //     };
 // #endif /* DBCAP_1_TEST */
 
-// #ifdef LOCALTEST
-//     #define NUM_SLAVES 1
-//     static char SLAVE_ADDR[NUM_SLAVES][32] = {
-//         HOME_ADDR
-//     };
-// #endif /* LOCALTEST */
-
-#ifdef FULL_TEST /* Full test with 3 slaves */
-    #define NUM_SLAVES 3
+#ifdef LOCALTEST
+    #define NUM_SLAVES 1
     static char SLAVE_ADDR[NUM_SLAVES][32] = {
-        DBC4_ADDR,
+        HOME_ADDR
+    };
+#endif /* LOCALTEST */
+
+#ifdef FULL_TEST /* Full test with 7 slaves */
+    #define NUM_SLAVES 7
+    static char SLAVE_ADDR[NUM_SLAVES][32] = {
         DBC2_ADDR,
-        DBC3_ADDR
+        DBC3_ADDR,
+        DBC4_ADDR,
+        DBC5_ADDR,
+        DBC6_ADDR,
+        DBC7_ADDR,
+        DBC8_ADDR
     };
 #endif /* FULL_TEST */
 

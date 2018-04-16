@@ -27,7 +27,8 @@ struct query_result {
 };
 
 struct btree_query_args {
-    struct btree_query_args recur_query_list<>;
+    struct btree_query_args* recur_query_list;
+    unsigned int recur_query_list_len;
     unsigned int local_vectors<>;
     char local_ops<>;
     char subquery_ops<>;

@@ -69,15 +69,15 @@ query_result *btree_query_1_svc(btree_query_args args, struct svc_req *req)
     }
 
     // the final call: no more vectors to visit
-    if (args.recur_query_list.recur_query_list_len == 0) {
+    if (args.recur_query_list_len == 0) {
         return res;
     }
 
-    unsigned int sub_len = args.recur_query_list.recur_query_list_len;
+    unsigned int sub_len = args.recur_query_list_len;
     query_result *result[sub_len];
     int i;
     for (i = 0; i < sub_len; i++) {
-        btree_query_args a = args.recur_query_list.recur_query_list_val[i];
+        btree_query_args a = args.recur_query_list[i];
 
         CLIENT *clnt = clnt_create(a.this_machine_address, BTREE_QUERY_PIPE,
             BTREE_QUERY_PIPE_V1, "tcp");
@@ -299,7 +299,7 @@ rq_range_root_1_svc(rq_range_root_args query, struct svc_req *req)
         rq_pipe_args *head_args = pipe_args;
         int j;
         for (j = 0; j < num_nodes; j++) {
-            pipe_args->machine_addr = SLAVE_ADDR[range_array[array_index++]];
+            pipe_args->machine_addr = SLAVE_ADDR[range_array[array_index++] - 1];
             pipe_args->vec_id = range_array[array_index++];
             pipe_args->op = '|';
             if (j < num_nodes - 1) {

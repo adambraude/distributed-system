@@ -12,6 +12,29 @@
 
 btree_query_args *get_query_args(PyObject *);
 
+void _recur_print(btree_query_args *args)
+{
+    printf("At machine %s\n", args->this_machine_address);
+        int i;
+
+    if (args->local_vectors.local_vectors_val != NULL) {
+        puts("for loop");
+        for (i = 0; i < args->local_vectors.local_vectors_len; i++) {
+            printf("Lv %d = %d\n", i, args->local_vectors.local_vectors_val[i]);
+        }
+    }
+    puts("1st if");
+    if (args->recur_query_list_len == 0) {
+        puts("Done.");
+        return;
+    }
+    puts("recursive print");
+    for (i = 0; i < args->recur_query_list_len; i++) {
+        puts("nul chck");
+        //printf("is null: %d\n", args->recur_query_list[i] == NULL);
+        _recur_print(&args->recur_query_list[i]);
+    }
+}
 
 int init_btree_range_query(range_query_contents contents)
 {
@@ -20,7 +43,6 @@ int init_btree_range_query(range_query_contents contents)
     PySys_SetPath(".");
     // TODO: condition on plan type
     PyObject *pModule, *pValue;
-    //pName = PyString_FromString("mst_planner");
     pModule = PyImport_ImportModule("mst_planner");
     if (pModule != NULL) {
         PyObject *pyArg;
@@ -28,7 +50,7 @@ int init_btree_range_query(range_query_contents contents)
         // set the subranges
         int i;
         for (i = 0; i < contents.num_ranges; i++) {
-            int range_len = contents.ranges[i][1] - contents.ranges[i][0];
+            int range_len = contents.ranges[i][1] - contents.ranges[i][0] + 1;
             PyObject *sublist = PyList_New(range_len);
             PyList_SetItem(pyArg, i, sublist);;
             //unsigned int vec_ids[range_len];
@@ -42,7 +64,7 @@ int init_btree_range_query(range_query_contents contents)
                 unsigned int *tup = get_machines_for_vector(j, false);
                 PyTuple_SetItem(t2, 0, PyInt_FromLong(tup[0]));
                 PyTuple_SetItem(t2, 1, PyInt_FromLong(tup[1]));
-                PyList_SetItem(sublist, contents.ranges[i][0] - j, t1);
+                PyList_SetItem(sublist, j - contents.ranges[i][0], t1);
             }
         }
         PyObject *pFunc = PyObject_GetAttrString(pModule, "iter_mst");
@@ -62,14 +84,17 @@ int init_btree_range_query(range_query_contents contents)
                 }
                 btree_query_args *coordinator_args = (btree_query_args *)
                     malloc(sizeof(btree_query_args));
+                char addr[32];
+                coordinator_args->this_machine_address = addr;
                 strcpy(coordinator_args->this_machine_address, SLAVE_ADDR[coordinator_node - 1]);
-                coordinator_args->recur_query_list.recur_query_list_val = args;
-                coordinator_args->recur_query_list.recur_query_list_len = num_trees;
+                coordinator_args->recur_query_list = args;
+                coordinator_args->recur_query_list_len = num_trees;
                 int num_coord_ops = num_trees + 1; // XXX may be off-by-1
                 char coord_ops[num_coord_ops];
                 coordinator_args->subquery_ops.subquery_ops_val = coord_ops;
                 memset(coordinator_args->subquery_ops.subquery_ops_val, '&', num_coord_ops);
                 coordinator_args->subquery_ops.subquery_ops_len = num_coord_ops;
+                _recur_print(coordinator_args);
                 CLIENT *clnt = clnt_create(coordinator_args->this_machine_address,
                     BTREE_QUERY_PIPE, BTREE_QUERY_PIPE_V1, "tcp");
                 btree_query_1(*coordinator_args, clnt);
@@ -113,15 +138,15 @@ btree_query_args *get_query_args(PyObject *vertex)
         return args;
     }
     btree_query_args subqs[num_children];
-    args->recur_query_list.recur_query_list_val = subqs;
-    args->recur_query_list.recur_query_list_len = num_children;
+    args->recur_query_list = subqs;
+    args->recur_query_list_len = num_children;
     char subops[num_children - 1];
     args->subquery_ops.subquery_ops_val = subops;
     args->subquery_ops.subquery_ops_len = num_vecs - 1;
     memset(args->subquery_ops.subquery_ops_val, '|', num_vecs - 1);
     int i;
     for (i = 0; i < num_children; i++) {
-        args->recur_query_list.recur_query_list_val[i] = *get_query_args(PyList_GetItem(children, i));
+        args->recur_query_list[i] = *get_query_args(PyList_GetItem(children, i));
     }
     return args;
 }

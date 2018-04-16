@@ -67,6 +67,7 @@ int main(int argc, char *argv[])
     // index in slave list will be the machine ID (0 is master)
     slavelist = (slave_ll *) malloc(sizeof(slave_ll));
     slave_ll *head = slavelist;
+    if (num_slaves == 1) replication_factor = 1;
     int i;
     for (i = 0; i < num_slaves; i++) {
         printf("Trying to make a slave\n");
@@ -305,6 +306,7 @@ int remove_slave(unsigned int slave_id)
     /* ...and just remove it (Torvalds-style) */
     *head = (*head)->next;
     num_slaves--;
+    if (num_slaves == 1) replication_factor = 1;
     return EXIT_SUCCESS;
 }
 

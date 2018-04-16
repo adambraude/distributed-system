@@ -105,13 +105,10 @@ def _mst_prim(vertices, w, root, vector_map):
         u = heapq.heappop(queue)
         for v in _adj(prim_verts, u):
             wgt = w(u, v)
-            #print("Comparing {0} and {1}, w = {2} vs {3}, in {4}".format(u,v,wgt,prim_verts[v].key,queue))
             if wgt < prim_verts[v].key and v in queue:
-                #print("Adding to the tree!\n")
                 prim_verts[v].par = u
                 prim_verts[u].children.append(v)
                 prim_verts[v].key = wgt
-    # TODO convert children/vectors into lists, if they're easier to use in C.
     for vert in prim_verts:
         prim_verts[vert].vectors = vector_map[vert]
         #print("{0} has {1}".format(vert,vector_map[vert]))

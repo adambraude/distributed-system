@@ -9,7 +9,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include </usr/include/python2.7/Python.h> // XXX should be Python3.5 on Linux
 
 btree_query_args *get_query_args(PyObject *);
 
@@ -17,11 +16,12 @@ btree_query_args *get_query_args(PyObject *);
 int init_btree_range_query(range_query_contents contents)
 {
     Py_Initialize();
+    PyImport_ImportModule("heapq");
     PySys_SetPath(".");
     // TODO: condition on plan type
-    PyObject *pName, *pModule, *pValue;
-    pName = PyString_FromString("mst_planner");
-    pModule = PyImport_Import(pName);
+    PyObject *pModule, *pValue;
+    //pName = PyString_FromString("mst_planner");
+    pModule = PyImport_ImportModule("mst_planner");
     if (pModule != NULL) {
         PyObject *pyArg;
         pyArg = PyList_New(contents.num_ranges);
@@ -74,10 +74,14 @@ int init_btree_range_query(range_query_contents contents)
                     BTREE_QUERY_PIPE, BTREE_QUERY_PIPE_V1, "tcp");
                 btree_query_1(*coordinator_args, clnt);
             }
+            else
+                PyErr_Print();
         }
+        else
+            PyErr_Print();
     }
     else {
-
+        PyErr_Print();
     }
     Py_Finalize();
     return 0;

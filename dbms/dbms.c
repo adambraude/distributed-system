@@ -2,7 +2,6 @@
 #include "../ipc/messages.h"
 #include "../types/types.h"
 #include "../bitmap-vector/read_vec.h"
-//#include "../../bitmap-engine/BitmapEngine/src/wah/WAHCompressor.h"
 
 #include <errno.h>
 #include <stdbool.h>

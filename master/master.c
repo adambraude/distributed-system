@@ -51,9 +51,8 @@ int main(int argc, char *argv[])
     }
     */
     /* Connect to message queue. */
-    printf("inside master\n");
     partition_t = RING_CH;
-    query_plan_t = STARFISH;
+    query_plan_t = ITER_PRIM;
     int msq_id = msgget(MSQ_KEY, MSQ_PERMISSIONS | IPC_CREAT);
     /* Container for messages. */
     struct msgbuf *request;
@@ -70,9 +69,7 @@ int main(int argc, char *argv[])
     if (num_slaves == 1) replication_factor = 1;
     int i;
     for (i = 0; i < num_slaves; i++) {
-        printf("Trying to make a slave\n");
         slave *s = new_slave(SLAVE_ADDR[i]); // TODO: when we use CLI args, change this array
-        printf("Setting up\n");
         if (setup_slave(s)) { // could not connect
             printf("MASTER: Could not register machine %s\n",
                 SLAVE_ADDR[i]);
@@ -85,6 +82,7 @@ int main(int argc, char *argv[])
         }
         else {
             slavelist->slave_node = s;
+            printf("Added slave %s\n", SLAVE_ADDR[i]);
             /* if there is another slave to add to the linked-list,
              * allocate a node for it */
             if (i < num_slaves - 1) {
@@ -134,7 +132,6 @@ int main(int argc, char *argv[])
             break;
         }
     }
-    puts("entering msg loop");
 
     /* message receipt loop */
     while (true) {
@@ -167,14 +164,12 @@ int main(int argc, char *argv[])
                     if (cs_index == replication_factor) break;
                     head = head->next;
                 }
-                puts("commiting...");
                 int commit_res = commit_vector(request->vector.vec_id, request->vector.vec,
                     commit_slaves, replication_factor);
                 if (commit_res) {
                     heartbeat();
 
                 }
-                puts("finished put");
             }
             else if (request->mtype == mtype_range_query) {
                 range_query_contents contents = request->range_query;

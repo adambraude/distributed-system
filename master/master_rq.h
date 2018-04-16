@@ -11,7 +11,7 @@ int init_range_query(unsigned int *array_index, int num_ranges, char *ops, int a
 #ifdef __APPLE__
     #include </usr/include/python2.7/Python.h>
 #elif defined __linux__
-    #include </usr/include/python3.5/Python.h>
+    #include </usr/include/python2.7/Python.h>
 #endif
 
 #endif

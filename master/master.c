@@ -184,13 +184,10 @@ int main(int argc, char *argv[])
                             heartbeat();
                         break;
                     }
-                    case UNISTAR: {
-                        break;
-                    }
-                    case MULTISTAR: {
-                        break;
-                    }
+                    case UNISTAR:
+                    case MULTISTAR:
                     case ITER_PRIM: {
+                        init_btree_range_query(contents);
                         break;
                     }
                 }
@@ -211,6 +208,8 @@ int main(int argc, char *argv[])
     }
 
 }
+
+
 
 int starfish(range_query_contents contents)
 {

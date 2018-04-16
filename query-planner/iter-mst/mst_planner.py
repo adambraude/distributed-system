@@ -42,6 +42,7 @@ adjacency_matrix = [[1 if i != j else 0 for i in range(num_machines)] for j in r
 def iter_mst(query):
     trees = []
     flipped = False
+    global coordinator
     for subq in query:
         vertices = set({})
         vert_vec_map = {}
@@ -59,10 +60,10 @@ def iter_mst(query):
         tree = _mst_prim(vertices, lambda x, y: adjacency_matrix[x][y], root, vert_vec_map)
         # update adjacency matrix
         _recur_update_am(root, tree)
-        #print("Root: {0}, children = {1}".format(root, tree[root].children))
         flipped = not flipped
-        trees.append((root, tree))
-    return trees
+        coordinator = root # set the coordinator to be the last chosen root
+        trees.append(tree)
+    return (coordinator, trees)
 
 def _recur_update_am(root, verts):
     for child in verts[root].children:
@@ -76,6 +77,7 @@ def _adj(verts, v):
         if v != w and w in verts: t.add(w)
     return t
 
+# TODO: make this accessible to the other planners
 class Vertex(object):
     def __init__(self, key, par=None):
         self.key = key
@@ -107,12 +109,9 @@ def _mst_prim(vertices, w, root, vector_map):
             wgt = w(u, v)
             if wgt < prim_verts[v].key and v in queue:
                 prim_verts[v].par = u
-                prim_verts[u].children.append(v)
+                prim_verts[u].children.append(prim_verts[v])
                 prim_verts[v].key = wgt
     for vert in prim_verts:
         prim_verts[vert].vectors = vector_map[vert]
-        #print("{0} has {1}".format(vert,vector_map[vert]))
-    #print(prim_verts[root].par)
-    return prim_verts
 
-#iter_mst(query)
+    return prim_verts

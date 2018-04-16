@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
     */
     /* Connect to message queue. */
     partition_t = RING_CH;
-    query_plan_t = ITER_PRIM;
+    query_plan_t = STARFISH;
     int msq_id = msgget(MSQ_KEY, MSQ_PERMISSIONS | IPC_CREAT);
     /* Container for messages. */
     struct msgbuf *request;

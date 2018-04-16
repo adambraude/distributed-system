@@ -234,6 +234,7 @@ int starfish(range_query_contents contents)
         for (j = range[0]; j <= range[1]; j++) {
             unsigned int *tuple = get_machines_for_vector(j, false);
             machine_vec_ptrs[j - range[0]] = tuple;
+            printf("Vector %d on machines %d %d\n", j, tuple[0], tuple[1]);
         }
 
         qsort(machine_vec_ptrs, range[1] - range[0],

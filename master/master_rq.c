@@ -89,10 +89,10 @@ int init_btree_range_query(range_query_contents contents)
 
 btree_query_args *get_query_args(PyObject *vertex)
 {
-    PyObject *children = PyObject_GetAttrString(vertex, "children");
+    PyObject *children = PyObject_GetAttrString(vertex, "children"); // list of Vertex objects
     btree_query_args *args = (btree_query_args *)
         malloc(sizeof(btree_query_args));
-    PyObject *vectors = PyObject_GetAttrString(vertex, "vectors");
+    PyObject *vectors = PyObject_GetAttrString(vertex, "vectors"); // list of integers (machine IDs)
     unsigned int num_vecs = PyList_Size(vectors);
     unsigned int arr[num_vecs];
     char ops[num_vecs - 1];
@@ -101,7 +101,7 @@ btree_query_args *get_query_args(PyObject *vertex)
     args->local_ops.local_ops_val = ops;
     args->local_ops.local_ops_len = num_vecs - 1;
     memset(args->local_ops.local_ops_val, '|', num_vecs - 1);
-    long machine_id = PyInt_AsLong(PyObject_GetAttrString(vertex, "key"));
+    long machine_id = PyInt_AsLong(PyObject_GetAttrString(vertex, "id"));
     strcpy(args->this_machine_address, SLAVE_ADDR[machine_id - 1]);
     int j;
     for (j = 0; j < num_vecs; j++) {

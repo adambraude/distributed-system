@@ -366,7 +366,7 @@ rq_range_root_1_svc(rq_range_root_args query, struct svc_req *req)
     result_vector_len = AND_WAH(result_vector,
         results[0]->vector.vector_val, results[0]->vector.vector_len,
         results[1]->vector.vector_val, results[1]->vector.vector_len);
-
+    puts("ANDing results");
     /* AND the subsequent vectors together */
     for (i = 2; i < num_threads; i++) {
         u_int64_t *new_result_vector = (u_int64_t *)
@@ -377,6 +377,7 @@ rq_range_root_1_svc(rq_range_root_args query, struct svc_req *req)
         free(result_vector);
         result_vector = new_result_vector;
     }
+    puts("deallocating");
     /* deallocate the results */
     free_res(num_threads);
     res->vector.vector_val = result_vector;

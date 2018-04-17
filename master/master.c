@@ -331,6 +331,8 @@ void reallocate()
                 if (head->slave_node->id == sucsuc_id) sucsuc = head->slave_node;
                 head = head->next;
             }
+            // TODO: have send_vector take an *integer* instead, and get the
+            // address out of the slavelist array
             // transfer predecessor's vectors to dead node's successor
             slave_vector *vec = pred->primary_vector_head;
             if (pred != succ) {

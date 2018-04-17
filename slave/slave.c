@@ -247,7 +247,7 @@ rq_range_root_1_svc(rq_range_root_args query, struct svc_req *req)
         rq_pipe_args *head_args = pipe_args;
         int j;
         for (j = 0; j < num_nodes; j++) {
-            pipe_args->machine_addr = SLAVE_ADDR[range_array[array_index++] - 1];
+            pipe_args->machine_addr = SLAVE_ADDR[range_array[array_index++]];
             printf("Address = %s\n", pipe_args->machine_addr);
             pipe_args->vec_id = range_array[array_index++];
             pipe_args->op = '|';

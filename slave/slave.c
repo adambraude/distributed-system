@@ -167,6 +167,50 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
     /* Recursive Query */
     else {
         printf("Going to visit %s\n", query.machine_addr);
+        while (!strcmp(query.next->machine_addr, SLAVE_ADDR[slave_id - 1])) { // TODO: pass slave ID, so that we don't have to pass address, and save comparison time,
+            next_result = get_vector(query.next->vec_id);
+            u_int result_len = 0;
+            u_int64_t result_val[max(this_result->vector.vector_len,
+                next_result->vector.vector_len)];
+            // TODO: move to separate function, avoiding need for copy-paste job
+
+            if (query.op == '|') {
+                result_len = OR_WAH(result_val,
+                    this_result->vector.vector_val, this_result->vector.vector_len,
+                    next_result->vector.vector_val, next_result->vector.vector_len);
+            }
+            else if (query.op == '&') {
+                result_len = AND_WAH(result_val,
+                    this_result->vector.vector_val, this_result->vector.vector_len,
+                    next_result->vector.vector_val, next_result->vector.vector_len);
+            }
+            else {
+                query_result *res = (query_result *) malloc(sizeof(query_result));
+                char buf[32];
+                snprintf(buf, 32, "Unknown operator %c", query.op);
+                res->vector.vector_val = NULL;
+                res->vector.vector_len = 0;
+                res->error_message = buf;
+                res->exit_code = EXIT_FAILURE;
+                return res;
+            }
+            query = *query.next;
+            if (query.next == NULL) {
+                u_int result_len = 0;
+                query_result *res = (query_result *) malloc(sizeof(query_result));
+                /* account for 0-positioned empty word */
+                res->vector.vector_len = result_len + 1;
+                memcpy(res->vector.vector_val, result_val, result_len * sizeof(u_int64_t));
+                res->exit_code = EXIT_SUCCESS;
+                free(this_result);
+                free(next_result);
+                res->error_message = "";
+                return res;
+            }
+            /* there are still more vectors to visit! */
+            this_result->vector.vector_val = result_val;
+            this_result->vector.vector_len = result_len;
+        }
         char *host = query.machine_addr;
         CLIENT *client;
         client = clnt_create(host,
@@ -202,7 +246,7 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
 
     /* Our final return values. */
     u_int64_t result_val[max(this_result->vector.vector_len,
-        this_result->vector.vector_len)];
+        next_result->vector.vector_len)];
 
     u_int result_len = 0;
     query_result *res = (query_result *) malloc(sizeof(query_result));
@@ -358,7 +402,8 @@ rq_range_root_1_svc(rq_range_root_args query, struct svc_req *req)
     res->error_message = "";
     if (num_threads == 1) { /* there are no vectors to AND together */
         memcpy(&res->vector, &results[0]->vector, sizeof(results[0]->vector));
-        free_res(num_threads);
+        free(results);
+        //free_res(num_threads);
         return res;
     }
     u_int64_t *result_vector = (u_int64_t *)
@@ -369,7 +414,6 @@ rq_range_root_1_svc(rq_range_root_args query, struct svc_req *req)
     result_vector_len = AND_WAH(result_vector,
         results[0]->vector.vector_val, results[0]->vector.vector_len,
         results[1]->vector.vector_val, results[1]->vector.vector_len);
-    puts("ANDing results");
     /* AND the subsequent vectors together */
     for (i = 2; i < num_threads; i++) {
         u_int64_t *new_result_vector = (u_int64_t *)
@@ -380,9 +424,9 @@ rq_range_root_1_svc(rq_range_root_args query, struct svc_req *req)
         free(result_vector);
         result_vector = new_result_vector;
     }
-    puts("deallocating");
     /* deallocate the results */
-    free_res(num_threads);
+    free(results);
+    //free_res(num_threads);
     res->vector.vector_val = result_vector;
     res->vector.vector_len = result_vector_len;
     return res;

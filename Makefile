@@ -36,8 +36,10 @@ $(BIN)/tree_map.o:
 		$(BIN)/tree_map.o \
 		$(BIN)/master_rq.o \
 		$(BIN)/master_tpc.o \
+		$(BIN)/WAHQuery.o \
+		$(BIN)/SegUtil.o \
 		master/master.c \
-		-lssl -lcrypto -lm -lpthread -lpython2.7
+		-lssl -lcrypto -lm -lpthread -lpython2.7 # TODO: make `MASTER_FLAGS` target
 
 .engine:
 	@echo "Compiling Bitmap Engine Query function"

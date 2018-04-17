@@ -65,11 +65,13 @@ struct rq_range_root_args {
     char ops<>;
 };
 
+/*
 program REMOTE_QUERY_ROOT {
     version REMOTE_QUERY_ROOT_V1 {
         query_result RQ_RANGE_ROOT(rq_range_root_args) = 1;
     } = 1;
 } = 0x10;
+*/
 
 struct commit_vec_args {
     unsigned int vec_id;

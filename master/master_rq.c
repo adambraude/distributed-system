@@ -165,7 +165,7 @@ init_range_query(unsigned int *range_array, int num_ranges,
     root->num_ranges = num_ranges;
     root->ops.ops_val = ops;
     root->ops.ops_len = num_ranges - 1;
-    char *coordinator = SLAVE_ADDR[0]; // arbitrary for now
+    char *coordinator = SLAVE_ADDR[0]; // arbitrary for now TODO: pick at random
     CLIENT *cl = clnt_create(coordinator, REMOTE_QUERY_ROOT,
         REMOTE_QUERY_ROOT_V1, "tcp");
     if (cl == NULL) {

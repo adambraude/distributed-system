@@ -224,6 +224,7 @@ int starfish(range_query_contents contents)
     unsigned int *range_array = (unsigned int *)
         malloc(sizeof(unsigned int) * num_ints_needed);
     int array_index = 0;
+    bool flip = false;
     for (i = 0; i < contents.num_ranges; i++) {
         unsigned int *range = contents.ranges[i];
         vec_id_t j;
@@ -234,6 +235,7 @@ int starfish(range_query_contents contents)
         for (j = range[0]; j <= range[1]; j++) {
             unsigned int *tuple = get_machines_for_vector(j, false);
             machine_vec_ptrs[j - range[0]] = tuple;
+            //if (flip) swap(tuple);
             printf("Vector %d on machines %s %s\n", j, SLAVE_ADDR[tuple[0] - 1], SLAVE_ADDR[tuple[1] - 1]);
         }
 
@@ -247,13 +249,14 @@ int starfish(range_query_contents contents)
             range_array[array_index++] =
                 machine_vec_ptrs[tuple_index][0];
             range_array[array_index++] =
-                machine_vec_ptrs[tuple_index][1];
+                j;
         }
 
         for (j = range[0]; j <= range[1]; j++) {
             free(machine_vec_ptrs[j - range[0]]);
         }
         free(machine_vec_ptrs);
+        flip = !flip;
     }
     return init_range_query(range_array, contents.num_ranges,
         contents.ops, array_index);

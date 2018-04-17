@@ -336,13 +336,15 @@ rq_range_root_1_svc(rq_range_root_args query, struct svc_req *req)
         pthread_join(tids[i], NULL);
         /* assuming a single point of failure, report on the failed slave */
         if (results[i]->exit_code != EXIT_SUCCESS) {
+            /*
             res->exit_code = results[i]->exit_code;
             char *msg = results[i]->error_message;
             res->error_message = (char *) malloc(sizeof(msg));
             strcpy(res->error_message, msg);
             res->failed_machine_id = results[i]->failed_machine_id;
-            free_res(num_threads);
             return res;
+            */
+            return results[i]; // TODO: probably want to free the other stuff too
         }
         largest_vector_len = max(largest_vector_len,
             results[i]->vector.vector_len);

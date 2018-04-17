@@ -140,8 +140,8 @@ query_result *get_vector(u_int vec_id)
         res->vector.vector_val = NULL;
         res->vector.vector_len = 0;
         res->exit_code = EXIT_FAILURE;
-        char buf[64];
-        snprintf(buf, 64, "Error: could not locate vector %d on machine %s", vec_id, SLAVE_ADDR[slave_id - 1]); // TODO: also machine name?
+        char buf[128];
+        snprintf(buf, 128, "Error: could not locate vector %d on machine %s", vec_id, SLAVE_ADDR[slave_id - 1]); // TODO: also machine name?
         res->error_message = buf;
         return res;
     }

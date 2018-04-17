@@ -40,7 +40,7 @@ query_result *get_vector(u_int vec_id)
         res->vector.vector_len = 0;
         res->exit_code = EXIT_FAILURE;
         char buf[128];
-        snprintf(buf, 128, "Error: could not locate vector %d on machine %s", vec_id, SLAVE_ADDR[slave_id - 1]); // TODO: also machine name?
+        snprintf(buf, 128, "Error: could not locate vector %d on machine %s", vec_id, SLAVE_ADDR[slave_id]); // TODO: also machine name?
         res->error_message = buf;
         return res;
     }
@@ -54,7 +54,7 @@ query_result *get_vector(u_int vec_id)
 
 query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
 {
-    printf("%s: In Pipe 1 svc\n", SLAVE_ADDR[slave_id - 1]);
+    printf("%s: In Pipe 1 svc\n", SLAVE_ADDR[slave_id]);
     query_result *this_result;
     query_result *next_result = NULL;
 
@@ -67,7 +67,7 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
     /* Recursive Query */
     else {
         printf("Going to visit %s\n", query.next->machine_addr);
-        while (!strcmp(query.next->machine_addr, SLAVE_ADDR[slave_id - 1])) { // TODO: pass slave ID, so that we don't have to pass address, and save comparison time,
+        while (!strcmp(query.next->machine_addr, SLAVE_ADDR[slave_id])) { // TODO: pass slave ID, so that we don't have to pass address, and save comparison time,
             next_result = get_vector(query.next->vec_id);
             u_int result_len = 0;
             u_int64_t result_val[max(this_result->vector.vector_len,

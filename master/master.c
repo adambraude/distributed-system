@@ -20,7 +20,7 @@
 
 /* variables for use in all master functions */
 slave_ll *slavelist;
-unsigned int slave_id_counter = 1;
+unsigned int slave_id_counter = 0;
 unsigned int partition_t;
 unsigned int query_plan_t;
 int num_slaves;
@@ -236,7 +236,7 @@ int starfish(range_query_contents contents)
             unsigned int *tuple = get_machines_for_vector(j, false);
             machine_vec_ptrs[j - range[0]] = tuple;
             //if (flip) swap(tuple);
-            printf("Vector %d on machines %s %s\n", j, SLAVE_ADDR[tuple[0] - 1], SLAVE_ADDR[tuple[1] - 1]);
+            printf("Vector %d on machines %s %s\n", j, SLAVE_ADDR[tuple[0]], SLAVE_ADDR[tuple[1]]);
         }
 
         qsort(machine_vec_ptrs, range[1] - range[0],

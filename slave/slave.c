@@ -154,6 +154,7 @@ query_result *get_vector(u_int vec_id)
 
 query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
 {
+    printf("%s: In Pipe 1 svc\n", SLAVE_ADDR[slave_id - 1]);
     query_result *this_result;
     query_result *next_result = NULL;
 
@@ -165,7 +166,7 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
         return this_result;
     /* Recursive Query */
     else {
-
+        printf("Going to visit %s\n", query.machine_addr);
         char *host = query.machine_addr;
         CLIENT *client;
         client = clnt_create(host,
@@ -231,6 +232,7 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
     res->exit_code = exit_code;
     free(this_result);
     free(next_result);
+    puts("Returning Result");
     return res;
 }
 

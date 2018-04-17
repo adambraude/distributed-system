@@ -18,6 +18,11 @@ int
 init_range_query(unsigned int *range_array, int num_ranges,
     char *ops, int array_len)
 {
+    int j;
+    puts("Printing Array");
+    for (j = 0; j < array_len; j++) {
+        printf("arr[%d] = %d\n", j, range_array[j]);
+    }
     rq_range_root_args *root = (rq_range_root_args *) malloc(sizeof(rq_range_root_args));
     root->range_array.range_array_val = range_array;
     root->range_array.range_array_len = array_len;

@@ -13,8 +13,9 @@
 #define HOME_ADDR "127.0.0.1"
 
 //#define LOCALTEST
-#define FULL_TEST
+//#define FULL_TEST
 //#define DBCAP_2_TEST
+#define DUAL_SLAVE_TEST
 
 #ifdef DBCAP_2_TEST
     #define NUM_SLAVES 1

@@ -26,6 +26,7 @@ struct query_result {
     string error_message<128>;
 };
 
+/*
 struct btree_query_args {
     struct btree_query_args* recur_query_list;
     unsigned int recur_query_list_len;
@@ -40,6 +41,7 @@ program BTREE_QUERY_PIPE {
         query_result BTREE_QUERY(btree_query_args) = 1;
     } = 1;
 } = 0x80;
+*/
 
 program REMOTE_QUERY_PIPE {
     version REMOTE_QUERY_PIPE_V1 {

@@ -182,7 +182,7 @@ int main(int argc, char *argv[])
                     case UNISTAR:
                     case MULTISTAR:
                     case ITER_PRIM: {
-                        init_btree_range_query(contents);
+                        //init_btree_range_query(contents); // TODO (for conference version)
                         break;
                     }
                 }

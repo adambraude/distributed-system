@@ -28,107 +28,6 @@ char *machine_failure_msg(char *);
 
 query_result *get_vector(u_int);
 
-query_result *btree_query_1_svc(btree_query_args args, struct svc_req *req)
-{
-    u_int64_t *result_vector;
-    unsigned int result_vector_len;
-    query_result *res;
-    if (args.local_vectors.local_vectors_len == 0) { // this is the coordinator
-        result_vector = NULL;
-    }
-    else {
-        unsigned int num_local_vecs = args.local_vectors.local_vectors_len;
-        // operate on local vectors
-        unsigned int *local_vecs = args.local_vectors.local_vectors_val;
-        res = get_vector(local_vecs[0]);
-        result_vector = res->vector.vector_val;
-        result_vector_len = res->vector.vector_len;
-        int i;
-        for (i = 1; i < num_local_vecs; i++) {
-            char op = args.local_ops.local_ops_val[i - 1];
-            query_result *second_vec_r = get_vector(local_vecs[i]);
-            u_int64_t *second_vec = second_vec_r->vector.vector_val;
-            unsigned int second_vec_len = second_vec_r->vector.vector_len;
-            u_int64_t *new_result_vector = (u_int64_t *)
-                malloc(sizeof(u_int64_t) * max(second_vec_len, result_vector_len));
-            if (op == '&') {
-                result_vector_len = AND_WAH(
-                    new_result_vector, result_vector,
-                    result_vector_len, second_vec,
-                    second_vec_len);
-            }
-            else if (op == '|') {
-                result_vector_len = OR_WAH(
-                    new_result_vector, result_vector,
-                    result_vector_len, second_vec,
-                    second_vec_len);
-            }
-            free(result_vector);
-            result_vector = new_result_vector;
-        }
-    }
-
-    // the final call: no more vectors to visit
-    if (args.recur_query_list_len == 0) {
-        return res;
-    }
-
-    unsigned int sub_len = args.recur_query_list_len;
-    query_result *result[sub_len];
-    int i;
-    for (i = 0; i < sub_len; i++) {
-        btree_query_args a = args.recur_query_list[i];
-
-        CLIENT *clnt = clnt_create(a.this_machine_address, BTREE_QUERY_PIPE,
-            BTREE_QUERY_PIPE_V1, "tcp");
-        if (clnt == NULL) {
-            res->exit_code = EXIT_FAILURE;
-            return res;
-        }
-        result[i] = btree_query_1(a, clnt);
-        if (result[i] == NULL) {
-            res->exit_code = EXIT_FAILURE;
-            return res;
-        }
-    }
-    // TODO: move to helper function.
-    if (result_vector == NULL) {
-        result_vector = result[0]->vector.vector_val;
-        result_vector_len = result[0]->vector.vector_len;
-        // XXX: it *should* be safe to and this first vector by itself,
-        // but if it's not, then have the following for loop skip
-        // the first iteration
-    }
-    for (i = 0; i < sub_len; i++) {
-        char op = args.subquery_ops.subquery_ops_val[i];
-        query_result *second_vec_r = result[i];
-        u_int64_t *second_vec = second_vec_r->vector.vector_val;
-        unsigned int second_vec_len = second_vec_r->vector.vector_len;
-        u_int64_t *new_result_vector = (u_int64_t *)
-            malloc(sizeof(u_int64_t) * max(second_vec_len, result_vector_len));
-        if (op == '&') {
-            result_vector_len = AND_WAH(
-                new_result_vector, result_vector,
-                result_vector_len, second_vec,
-                second_vec_len);
-        }
-        else if (op == '|') {
-            result_vector_len = OR_WAH(
-                new_result_vector, result_vector,
-                result_vector_len, second_vec,
-                second_vec_len);
-        }
-        free(result_vector);
-        result_vector = new_result_vector;
-    }
-    memcpy(res->vector.vector_val, result_vector, result_vector_len *
-        sizeof(u_int64_t));
-    res->vector.vector_len = result_vector_len;
-    res->exit_code = EXIT_SUCCESS;
-    res->error_message = "";
-    return res;
-}
-
 query_result *get_vector(u_int vec_id)
 {
     /* Turn vec_id into the filename "vec_id.dat" */
@@ -149,6 +48,7 @@ query_result *get_vector(u_int vec_id)
     res->vector.vector_len = vector->vector_length;
     res->exit_code = EXIT_SUCCESS;
     res->error_message = "";
+    free(vector);
     return res;
 }
 
@@ -166,7 +66,7 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
         return this_result;
     /* Recursive Query */
     else {
-        printf("Going to visit %s\n", query.machine_addr);
+        printf("Going to visit %s\n", query.next->machine_addr);
         while (!strcmp(query.next->machine_addr, SLAVE_ADDR[slave_id - 1])) { // TODO: pass slave ID, so that we don't have to pass address, and save comparison time,
             next_result = get_vector(query.next->vec_id);
             u_int result_len = 0;
@@ -203,7 +103,6 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
                 memcpy(res->vector.vector_val, result_val, result_len * sizeof(u_int64_t));
                 res->exit_code = EXIT_SUCCESS;
                 free(this_result);
-                free(next_result);
                 res->error_message = "";
                 return res;
             }
@@ -211,7 +110,7 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
             this_result->vector.vector_val = result_val;
             this_result->vector.vector_len = result_len;
         }
-        char *host = query.machine_addr;
+        char *host = query.next->machine_addr;
         CLIENT *client;
         client = clnt_create(host,
             REMOTE_QUERY_PIPE, REMOTE_QUERY_PIPE_V1, "tcp");
@@ -230,7 +129,7 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
                 clnt_perror(client, "call failed:");
                 this_result->exit_code = EXIT_FAILURE;
                 this_result->error_message =
-                    machine_failure_msg(query.machine_addr);
+                    machine_failure_msg(query.next->machine_addr);
                 return this_result;
             }
 
@@ -272,10 +171,13 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
 
     /* account for 0-positioned empty word */
     res->vector.vector_len = result_len + 1;
-    memcpy(res->vector.vector_val, result_val, result_len * sizeof(u_int64_t));
+    u_int64_t res_arr[res->vector.vector_len];
+    res->vector.vector_val = res_arr;
+    memcpy(res->vector.vector_val, result_val,
+        res->vector.vector_len * sizeof(u_int64_t));
     res->exit_code = exit_code;
+    res->error_message = "";
     free(this_result);
-    free(next_result);
     puts("Returning Result");
     return res;
 }
@@ -320,13 +222,13 @@ void *init_coordinator_thread(void *coord_args) {
     return (void *) EXIT_SUCCESS;
 }
 
-void free_res(int num_threads)
-{
-    int i;
-    for (i = 0; i < num_threads; i++)
-        free(results[i]);
-    free(results);
-}
+// void free_res(int num_threads)
+// {
+//     int i;
+//     for (i = 0; i < num_threads; i++)
+//         free(results[i]);
+//     free(results);
+// }
 
 query_result *
 rq_range_root_1_svc(rq_range_root_args query, struct svc_req *req)
@@ -407,8 +309,7 @@ rq_range_root_1_svc(rq_range_root_args query, struct svc_req *req)
         return res;
     }
     u_int64_t *result_vector = (u_int64_t *)
-        malloc(sizeof(u_int64_t) * largest_vector_len);
-    //u_int64_t result_vector[largest_vector_len];
+        malloc(sizeof(u_int64_t) * largest_vector_len); // XXX: is dynamically allocating this necessary??
 
     /* AND the first 2 vectors together */
     result_vector_len = AND_WAH(result_vector,

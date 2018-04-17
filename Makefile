@@ -49,6 +49,7 @@ $(BIN)/tree_map.o:
 .slave: .rpc .engine .bitmap-vector
 	@echo "Compiling Slave"
 	@$(CC) -o $(BIN)/slave \
+		$(RPC_BIN)/slave_clnt.o \
 		$(RPC_BIN)/slave_svc.o \
 		$(RPC_BIN)/slave_xdr.o \
 		$(BIN)/WAHQuery.o \

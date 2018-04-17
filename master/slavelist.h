@@ -23,6 +23,14 @@
     };
 #endif /* DBCAP_1_TEST */
 
+#ifdef DUAL_SLAVE_TEST
+    #define NUM_SLAVES 2
+    static char SLAVE_ADDR[NUM_SLAVES][32] = {
+        DBC2_ADDR,
+        DBC3_ADDR
+    };
+#endif
+
 #ifdef LOCALTEST
     #define NUM_SLAVES 1
     static char SLAVE_ADDR[NUM_SLAVES][32] = {

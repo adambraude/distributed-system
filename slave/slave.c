@@ -85,7 +85,7 @@ query_result *btree_query_1_svc(btree_query_args args, struct svc_req *req)
             res->exit_code = EXIT_FAILURE;
             return res;
         }
-        result[i] = btree_query_1_svc(a, clnt);
+        result[i] = btree_query_1(a, clnt);
         if (result[i] == NULL) {
             res->exit_code = EXIT_FAILURE;
             return res;
@@ -175,7 +175,7 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
             exit_code = EXIT_FAILURE;
         }
         else {
-            next_result = rq_pipe_1_svc(*(query.next), client);
+            next_result = rq_pipe_1(*(query.next), client);
             /* give the request a time-to-live */
             struct timeval tv;
             tv.tv_sec = TIME_TO_VOTE;
@@ -248,7 +248,7 @@ void *init_coordinator_thread(void *coord_args) {
     if (clnt == NULL) {
         clnt_pcreateerror(args->args->machine_addr);
     }
-    query_result *res = rq_pipe_1_svc(*(args->args), clnt);
+    query_result *res = rq_pipe_1(*(args->args), clnt);
     /* give the request a time-to-live */
     struct timeval tv;
     tv.tv_sec = TIME_TO_VOTE;
@@ -300,6 +300,7 @@ rq_range_root_1_svc(rq_range_root_args query, struct svc_req *req)
         int j;
         for (j = 0; j < num_nodes; j++) {
             pipe_args->machine_addr = SLAVE_ADDR[range_array[array_index++] - 1];
+            printf("Address = %s\n", pipe_args->machine_addr);
             pipe_args->vec_id = range_array[array_index++];
             pipe_args->op = '|';
             if (j < num_nodes - 1) {

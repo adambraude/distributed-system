@@ -1,7 +1,8 @@
 #ifndef SLAVELIST_H
 #define SLAVELIST_H
 
-#define DBC1_ADDR "10.250.94.63"
+#define DBC1_ADDR "10.250.94.63" /* master */
+
 #define DBC2_ADDR "10.250.94.56"
 #define DBC3_ADDR "10.250.94.72"
 #define DBC4_ADDR "10.250.94.69"
@@ -41,7 +42,8 @@
 
 #ifdef FULL_TEST /* Full test with 7 slaves */
     #define NUM_SLAVES 7
-    static char SLAVE_ADDR[NUM_SLAVES][32] = {
+    static char SLAVE_ADDR[NUM_SLAVES + 1][32] = {
+        "",
         DBC2_ADDR,
         DBC3_ADDR,
         DBC4_ADDR,

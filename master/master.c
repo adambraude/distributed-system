@@ -20,7 +20,7 @@
 
 /* variables for use in all master functions */
 slave_ll *slavelist;
-unsigned int slave_id_counter = 0;
+unsigned int slave_id_counter = 1;
 unsigned int partition_t;
 unsigned int query_plan_t;
 int num_slaves;

@@ -69,10 +69,10 @@ int main(int argc, char *argv[])
     if (num_slaves == 1) replication_factor = 1;
     int i;
     for (i = 0; i < num_slaves; i++) {
-        slave *s = new_slave(SLAVE_ADDR[i]); // TODO: when we use CLI args, change this array
+        slave *s = new_slave(SLAVE_ADDR[i + 1]); // TODO: when we use CLI args, change this array
         if (setup_slave(s)) { // could not connect
             printf("MASTER: Could not register machine %s\n",
-                SLAVE_ADDR[i]);
+                SLAVE_ADDR[i + 1]);
             // dealloc(slavelist)
             //exit(1);
             //return EXIT_FAILURE;
@@ -105,6 +105,7 @@ int main(int argc, char *argv[])
                 cptr->id = head->slave_node->id;
                 cptr->cache_name = head->slave_node->address;
                 cptr->replication_factor = 1;
+
                 insert_cache(chash_table, cptr);
                 free(cptr);
                 head = head->next;

@@ -43,19 +43,10 @@ init_range_query(unsigned int *range_array, int num_ranges,
     root->num_ranges = num_ranges;
     root->ops.ops_val = ops;
     root->ops.ops_len = num_ranges - 1;
-    // char *coordinator = SLAVE_ADDR[0]; // arbitrary for now TODO: pick at random
-    // CLIENT *cl = clnt_create(coordinator, REMOTE_QUERY_ROOT,
-    //     REMOTE_QUERY_ROOT_V1, "tcp");
-    // if (cl == NULL) {
-    //     printf("Error: could not connect to coordinator %s.\n", coordinator);
-    //     return 1;
-    // }
+
     printf("Range Root Query\n");
     query_result *res = rq_range_root(root);
-    // if (res == NULL) {
-    //     printf("No response from coordinator.\n");
-    //     return 1;
-    // }
+
     int i;
     if (res->exit_code == EXIT_SUCCESS) {
         for (i = 1; i < res->vector.vector_len - 1; i++) {

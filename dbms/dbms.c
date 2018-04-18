@@ -210,7 +210,6 @@ int range_query(int queue_id, char *query_str)
        bounds[0] = r1;
        bounds[1] = r2;
        ranges[num_ranges] = bounds;
-       printf("Adding range %d to %d\n", r1, r2);
        token = strtok(NULL, delim);
        if (token != NULL)
            ops[num_ranges] = token[0];

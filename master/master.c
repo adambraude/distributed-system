@@ -68,11 +68,11 @@ int main(int argc, char *argv[])
     slave_ll *head = slavelist;
     if (num_slaves == 1) replication_factor = 1;
     int i;
-    for (i = 0; i < num_slaves; i++) {
-        slave *s = new_slave(SLAVE_ADDR[i + 1]); // TODO: when we use CLI args, change this array
+    for (i = 1; i <= num_slaves; i++) {
+        slave *s = new_slave(SLAVE_ADDR[i]); // TODO: when we use CLI args, change this array
         if (setup_slave(s)) { // could not connect
             printf("MASTER: Could not register machine %s\n",
-                SLAVE_ADDR[i + 1]);
+                SLAVE_ADDR[i]);
             // dealloc(slavelist)
             //exit(1);
             //return EXIT_FAILURE;
@@ -225,7 +225,7 @@ int starfish(range_query_contents contents)
     unsigned int *range_array = (unsigned int *)
         malloc(sizeof(unsigned int) * num_ints_needed);
     int array_index = 0;
-    bool flip = false;
+    bool flip = true;
     for (i = 0; i < contents.num_ranges; i++) {
         unsigned int *range = contents.ranges[i];
         vec_id_t j;
@@ -237,7 +237,7 @@ int starfish(range_query_contents contents)
             unsigned int *tuple = get_machines_for_vector(j, false);
             machine_vec_ptrs[j - range[0]] = tuple;
             //if (flip) swap(tuple);
-            printf("Vector %d on machines %s %s\n", j, SLAVE_ADDR[tuple[0]], SLAVE_ADDR[tuple[1]]);
+            printf("Vector %d on machines %d : %s %d : %s\n", j, tuple[0],  SLAVE_ADDR[tuple[0]], tuple[1], SLAVE_ADDR[tuple[1]]);
         }
 
         qsort(machine_vec_ptrs, range[1] - range[0],
@@ -248,7 +248,7 @@ int starfish(range_query_contents contents)
         for (j = range[0]; j <= range[1]; j++) {
             tuple_index = j - range[0];
             range_array[array_index++] =
-                machine_vec_ptrs[tuple_index][0];
+                machine_vec_ptrs[tuple_index][(flip = !flip)];
             range_array[array_index++] =
                 j;
         }
@@ -257,7 +257,6 @@ int starfish(range_query_contents contents)
             free(machine_vec_ptrs[j - range[0]]);
         }
         free(machine_vec_ptrs);
-        flip = !flip;
     }
     return init_range_query(range_array, contents.num_ranges,
         contents.ops, array_index);

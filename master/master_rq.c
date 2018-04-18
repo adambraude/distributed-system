@@ -58,7 +58,7 @@ init_range_query(unsigned int *range_array, int num_ranges,
         printf("Query failed, reason: %s\n", res->error_message);
     }
     free(root);
-    free(res);
+    //free(res);
     //if (res != NULL) free(res);
     return EXIT_SUCCESS;
 }
@@ -78,9 +78,10 @@ query_result *rq_range_root(rq_range_root_args *query)
             malloc(sizeof(rq_pipe_args) * num_nodes);
         rq_pipe_args *head_args = pipe_args;
         int j;
+        printf("Num nodes = %d\n", num_nodes);
         for (j = 0; j < num_nodes; j++) {
             pipe_args->machine_addr = SLAVE_ADDR[range_array[array_index++]];
-            printf("Address = %s\n", pipe_args->machine_addr);
+            printf("Finding vector %d at %d : %s\n", range_array[array_index], range_array[array_index - 1], pipe_args->machine_addr);
             pipe_args->vec_id = range_array[array_index++];
             pipe_args->op = '|';
             if (j < num_nodes - 1) {

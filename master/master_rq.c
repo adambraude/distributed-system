@@ -101,9 +101,9 @@ query_result *rq_range_root(rq_range_root_args *query)
 
         thread_args->query_result_index = i;
         thread_args->args = head_args;
-
-        pthread_create(&tids[i], NULL, init_coordinator_thread,
-            (void *) thread_args);
+        init_coordinator_thread((void *) thread_args);
+        // pthread_create(&tids[i], NULL, init_coordinator_thread,
+        //     (void *) thread_args);
     }
 
     query_result *res = (query_result *) malloc(sizeof(query_result));
@@ -115,7 +115,7 @@ query_result *rq_range_root(rq_range_root_args *query)
     u_int result_vector_len = 0;
     u_int largest_vector_len = 0;
     for (i = 0; i < num_threads; i++) {
-        pthread_join(tids[i], NULL);
+        //pthread_join(tids[i], NULL);
         /* assuming a single point of failure, report on the failed slave */
         if (results[i]->exit_code != EXIT_SUCCESS) {
             /*
@@ -186,12 +186,12 @@ void *init_coordinator_thread(void *coord_args) {
     if (clnt == NULL) {
         clnt_pcreateerror(args->args->machine_addr);
     }
-    query_result *res = rq_pipe_1(*(args->args), clnt);
     /* give the request a time-to-live */
     struct timeval tv;
     tv.tv_sec = TIME_TO_VOTE;
     tv.tv_usec = 0;
     clnt_control(clnt, CLSET_TIMEOUT, &tv);
+    query_result *res = rq_pipe_1(*(args->args), clnt);
     if (res == NULL) {
         clnt_perror(clnt, "call failed: ");
         /* Report that this machine failed */

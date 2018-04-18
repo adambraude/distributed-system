@@ -227,7 +227,7 @@ int range_query(int queue_id, char *query_str)
 
    contents->num_ranges = num_ranges;
    range->range_query = *contents;
-   printf("Sending a message to queue\n");
+   //printf("Sending a message to queue\n");
    msgsnd(queue_id, range, sizeof(msgbuf), 0);
    free(contents);
    free(ops);

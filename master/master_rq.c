@@ -32,11 +32,6 @@ int
 init_range_query(unsigned int *range_array, int num_ranges,
     char *ops, int array_len)
 {
-    int j;
-    puts("Printing Array");
-    for (j = 0; j < array_len; j++) {
-        printf("arr[%d] = %d\n", j, range_array[j]);
-    }
     rq_range_root_args *root = (rq_range_root_args *) malloc(sizeof(rq_range_root_args));
     root->range_array.range_array_val = range_array;
     root->range_array.range_array_len = array_len;
@@ -44,7 +39,6 @@ init_range_query(unsigned int *range_array, int num_ranges,
     root->ops.ops_val = ops;
     root->ops.ops_len = num_ranges - 1;
 
-    printf("Range Root Query\n");
     query_result *res = rq_range_root(root);
 
     int i;
@@ -59,7 +53,6 @@ init_range_query(unsigned int *range_array, int num_ranges,
     }
     free(root);
     //free(res);
-    //if (res != NULL) free(res);
     return EXIT_SUCCESS;
 }
 
@@ -67,7 +60,7 @@ query_result *rq_range_root(rq_range_root_args *query)
 {
     int num_threads = query->num_ranges;
     unsigned int *range_array = query->range_array.range_array_val;
-    //pthread_t tids[num_threads];
+    pthread_t tids[num_threads];
 
     results = (query_result **) malloc(sizeof(query_result *) * num_threads);
     int i;
@@ -78,10 +71,9 @@ query_result *rq_range_root(rq_range_root_args *query)
             malloc(sizeof(rq_pipe_args) * num_nodes);
         rq_pipe_args *head_args = pipe_args;
         int j;
-        printf("Num nodes = %d\n", num_nodes);
         for (j = 0; j < num_nodes; j++) {
             pipe_args->machine_addr = SLAVE_ADDR[range_array[array_index++]];
-            printf("Finding vector %d at %d : %s\n", range_array[array_index], range_array[array_index - 1], pipe_args->machine_addr);
+            //printf("Finding vector %d at %d : %s\n", range_array[array_index], range_array[array_index - 1], pipe_args->machine_addr);
             pipe_args->vec_id = range_array[array_index++];
             pipe_args->op = '|';
             if (j < num_nodes - 1) {
@@ -101,9 +93,8 @@ query_result *rq_range_root(rq_range_root_args *query)
 
         thread_args->query_result_index = i;
         thread_args->args = head_args;
-        init_coordinator_thread((void *) thread_args);
-        // pthread_create(&tids[i], NULL, init_coordinator_thread,
-        //     (void *) thread_args);
+        pthread_create(&tids[i], NULL, init_coordinator_thread,
+            (void *) thread_args);
     }
 
     query_result *res = (query_result *) malloc(sizeof(query_result));
@@ -138,7 +129,6 @@ query_result *rq_range_root(rq_range_root_args *query)
     if (num_threads == 1) { /* there are no vectors to AND together */
         memcpy(&res->vector, &results[0]->vector, sizeof(results[0]->vector));
         free(results);
-        //free_res(num_threads);
         return res;
     }
     u_int64_t *result_vector = (u_int64_t *)
@@ -160,7 +150,6 @@ query_result *rq_range_root(rq_range_root_args *query)
     }
     /* deallocate the results */
     free(results);
-    //free_res(num_threads);
     res->vector.vector_val = result_vector;
     res->vector.vector_len = result_vector_len;
     return res;

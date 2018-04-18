@@ -244,7 +244,6 @@ int starfish(range_query_contents contents)
             machine_vec_ptrs[mvp_addr] = (u_int *) malloc(sizeof(u_int) * 2);
             machine_vec_ptrs[mvp_addr][0] = tuple[0];
             machine_vec_ptrs[mvp_addr][1] = j;
-            printf("Vector %d on machines %d : %s %d : %s\n", j, tuple[0],  SLAVE_ADDR[tuple[0]], tuple[1], SLAVE_ADDR[tuple[1]]);
         }
 
         qsort(machine_vec_ptrs, range_len,

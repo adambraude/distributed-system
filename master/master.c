@@ -230,9 +230,9 @@ int starfish(range_query_contents contents)
         vec_id_t j;
         // FIXME: clarify this code by naming range1, range0
         // start of range is number of vectors
-        range_array[array_index++] = range[1] - range[0] + 1;
-        u_int **machine_vec_ptrs = (u_int **)
-            malloc(sizeof(int *) * (range[1] - range[0] + 1));
+        u_int range_len = range[1] - range[0] + 1;
+        range_array[array_index++] = range_len;
+        u_int **machine_vec_ptrs = (u_int **) malloc(sizeof(int *) * range_len);
         for (j = range[0]; j <= range[1]; j++) {
             u_int *tuple = get_machines_for_vector(j, false);
             if (flip) {
@@ -247,7 +247,7 @@ int starfish(range_query_contents contents)
             printf("Vector %d on machines %d : %s %d : %s\n", j, tuple[0],  SLAVE_ADDR[tuple[0]], tuple[1], SLAVE_ADDR[tuple[1]]);
         }
 
-        qsort(machine_vec_ptrs, range[1] - range[0],
+        qsort(machine_vec_ptrs, range_len,
             sizeof(u_int) * 2, compare_machine_vec_tuple);
         flip = !flip;
 

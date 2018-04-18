@@ -67,7 +67,7 @@ query_result *rq_range_root(rq_range_root_args *query)
 {
     int num_threads = query->num_ranges;
     unsigned int *range_array = query->range_array.range_array_val;
-    pthread_t tids[num_threads];
+    //pthread_t tids[num_threads];
 
     results = (query_result **) malloc(sizeof(query_result *) * num_threads);
     int i;

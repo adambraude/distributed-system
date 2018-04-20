@@ -137,14 +137,14 @@ query_result *rq_range_root(rq_range_root_args *query)
     /* AND the first 2 vectors together */
     result_vector_len = AND_WAH(result_vector,
         results[0]->vector.vector_val, results[0]->vector.vector_len,
-        results[1]->vector.vector_val, results[1]->vector.vector_len);
+        results[1]->vector.vector_val, results[1]->vector.vector_len) + 1;
     /* AND the subsequent vectors together */
     for (i = 2; i < num_threads; i++) {
         u_int64_t *new_result_vector = (u_int64_t *)
             malloc(sizeof(u_int64_t) * largest_vector_len);
         result_vector_len = AND_WAH(new_result_vector, result_vector,
             result_vector_len, results[i]->vector.vector_val,
-            results[i]->vector.vector_len);
+            results[i]->vector.vector_len) + 1;
         free(result_vector);
         result_vector = new_result_vector;
     }

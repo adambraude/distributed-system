@@ -77,12 +77,12 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
             if (query.op == '|') {
                 result_len = OR_WAH(result_val,
                     this_result->vector.vector_val, this_result->vector.vector_len,
-                    next_result->vector.vector_val, next_result->vector.vector_len);
+                    next_result->vector.vector_val, next_result->vector.vector_len) + 1;
             }
             else if (query.op == '&') {
                 result_len = AND_WAH(result_val,
                     this_result->vector.vector_val, this_result->vector.vector_len,
-                    next_result->vector.vector_val, next_result->vector.vector_len);
+                    next_result->vector.vector_val, next_result->vector.vector_len) + 1;
             }
             else {
                 query_result *res = (query_result *) malloc(sizeof(query_result));
@@ -96,10 +96,8 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
             }
             query = *query.next;
             if (query.next == NULL) {
-                u_int result_len = 0;
                 query_result *res = (query_result *) malloc(sizeof(query_result));
-                /* account for 0-positioned empty word */
-                res->vector.vector_len = result_len + 1;
+                res->vector.vector_len = result_len;
                 memcpy(res->vector.vector_val, result_val, result_len * sizeof(u_int64_t));
                 res->exit_code = EXIT_SUCCESS;
                 free(this_result);
@@ -152,12 +150,12 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
     if (query.op == '|') {
         result_len = OR_WAH(result_val,
             this_result->vector.vector_val, this_result->vector.vector_len,
-            next_result->vector.vector_val, next_result->vector.vector_len);
+            next_result->vector.vector_val, next_result->vector.vector_len) + 1;
     }
     else if (query.op == '&') {
         result_len = AND_WAH(result_val,
             this_result->vector.vector_val, this_result->vector.vector_len,
-            next_result->vector.vector_val, next_result->vector.vector_len);
+            next_result->vector.vector_val, next_result->vector.vector_len) + 1;
     }
     else {
         char buf[32];
@@ -169,8 +167,7 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
         return res;
     }
 
-    /* account for 0-positioned empty word */
-    res->vector.vector_len = result_len + 1;
+    res->vector.vector_len = result_len;
     u_int64_t res_arr[res->vector.vector_len];
     res->vector.vector_val = res_arr;
     memcpy(res->vector.vector_val, result_val,

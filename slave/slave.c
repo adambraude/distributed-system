@@ -70,8 +70,10 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
         while (!strcmp(query.next->machine_addr, SLAVE_ADDR[slave_id])) { // TODO: pass slave ID, so that we don't have to pass address, and save comparison time,
             next_result = get_vector(query.next->vec_id);
             u_int result_len = 0;
-            u_int64_t result_val[max(this_result->vector.vector_len,
-                next_result->vector.vector_len)];
+            u_int v_len = max(this_result->vector.vector_len,
+                next_result->vector.vector_len);
+            u_int64_t result_val[v_len];
+            memset(result_val, 0, v_len);
             // TODO: move to separate function, avoiding need for copy-paste job
 
             if (query.op == '|') {
@@ -143,9 +145,10 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
     }
 
     /* Our final return values. */
-    u_int64_t result_val[max(this_result->vector.vector_len,
-        next_result->vector.vector_len)];
-
+    u_int v_len = max(this_result->vector.vector_len,
+        next_result->vector.vector_len);
+    u_int64_t result_val[v_len];
+    memcpy(result_val, 0, v_len);
     u_int result_len = 0;
     query_result *res = (query_result *) malloc(sizeof(query_result));
     if (query.op == '|') {

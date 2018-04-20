@@ -133,7 +133,8 @@ query_result *rq_range_root(rq_range_root_args *query)
     }
     u_int64_t *result_vector = (u_int64_t *)
         malloc(sizeof(u_int64_t) * largest_vector_len); // XXX: is dynamically allocating this necessary??
-
+    //u_int64_t result_vector[largest_vector_len];
+    memset(result_vector, 0, largest_vector_len);
     /* AND the first 2 vectors together */
     result_vector_len = AND_WAH(result_vector,
         results[0]->vector.vector_val, results[0]->vector.vector_len,

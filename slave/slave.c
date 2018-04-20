@@ -98,6 +98,7 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
             if (query.next == NULL) {
                 query_result *res = (query_result *) malloc(sizeof(query_result));
                 res->vector.vector_len = result_len;
+                res->vector.vector_val = result_val;
                 memcpy(res->vector.vector_val, result_val, result_len * sizeof(u_int64_t));
                 res->exit_code = EXIT_SUCCESS;
                 free(this_result);

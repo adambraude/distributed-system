@@ -151,6 +151,7 @@ query_result *rq_range_root(rq_range_root_args *query)
     /* deallocate the results */
     free(results);
     res->vector.vector_val = result_vector;
+    memcpy(res->vector.vector_val, result_vector, result_vector_len);
     res->vector.vector_len = result_vector_len;
     return res;
 }

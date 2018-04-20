@@ -153,6 +153,7 @@ query_result *rq_range_root(rq_range_root_args *query)
     free(results);
     res->vector.vector_val = result_vector;
     u_int64_t arr[result_vector_len];
+    memset(result_vector, 0, largest_vector_len * sizeof(u_int64_t));
     res->vector.vector_val = arr; // XXX is this actually necessary
     memcpy(res->vector.vector_val, result_vector, result_vector_len * sizeof(u_int64_t));
     res->vector.vector_len = result_vector_len;

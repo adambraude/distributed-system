@@ -16,7 +16,7 @@ vec_t *read_vector(char *path)
         return NULL;
     else {
         u_int64_t vector_val[128];
-        memset(vector_val, 0, 128);
+        memset(vector_val, 0, 128 * sizeof(u_int64_t));
         u_int vector_len = 0;
         vec_t *return_vector = (vec_t *) malloc(sizeof(vec_t));
         char buf[32];

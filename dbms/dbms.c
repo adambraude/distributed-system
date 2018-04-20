@@ -128,8 +128,8 @@ int main(int argc, char *argv[])
         }
 
         /* querying */
-        char range[] = "R:[0,3]&[4,6]&[15,18]&[20,31]";
-        //char range[] = "R:[0,1]";
+        //char range[] = "R:[0,3]&[4,6]&[15,18]&[20,31]";
+        char range[] = "R:[0,1]";
         range_query(msq_id, range);
     }
     else {

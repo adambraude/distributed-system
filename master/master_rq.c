@@ -106,7 +106,7 @@ query_result *rq_range_root(rq_range_root_args *query)
     u_int result_vector_len = 0;
     u_int largest_vector_len = 0;
     for (i = 0; i < num_threads; i++) {
-        //pthread_join(tids[i], NULL);
+        pthread_join(tids[i], NULL);
         /* assuming a single point of failure, report on the failed slave */
         if (results[i]->exit_code != EXIT_SUCCESS) {
             /*

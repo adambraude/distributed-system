@@ -109,6 +109,7 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
             }
             /* there are still more vectors to visit! */
             u_int64_t res_arr[result_len];
+            memset(res_arr, 0, result_len * sizeof(u_int64_t));
             this_result->vector.vector_val = res_arr;
             memcpy(this_result->vector.vector_val, result_val,
                 sizeof(u_int64_t) * result_len);
@@ -157,7 +158,7 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
     u_int v_len = max(this_result->vector.vector_len,
         next_result->vector.vector_len);
     u_int64_t result_val[v_len];
-    memcpy(result_val, 0, v_len);
+    memset(result_val, 0, v_len * sizeof(u_int64_t));
     u_int result_len = 0;
     query_result *res = (query_result *) malloc(sizeof(query_result));
     if (query.op == '|') {
@@ -181,7 +182,8 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
     }
 
     res->vector.vector_len = result_len;
-    u_int64_t res_arr[res->vector.vector_len];
+    u_int64_t res_arr[result_len];
+    memset(res_arr, 0, result_len * sizeof(u_int64_t));
     res->vector.vector_val = res_arr;
     memcpy(res->vector.vector_val, result_val,
         res->vector.vector_len * sizeof(u_int64_t));

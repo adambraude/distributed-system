@@ -44,6 +44,7 @@ init_range_query(unsigned int *range_array, int num_ranges,
 
     int i;
     // political voting data query R:[0,1]
+    /*
     u_int64_t expected_res[9] = {
         0x54787ffedcff9ffb,
         0x23c183f431f77d7f,
@@ -55,7 +56,7 @@ init_range_query(unsigned int *range_array, int num_ranges,
         0,
         0
     };
-
+    */
     if (res->exit_code == EXIT_SUCCESS) {
         for (i = 1; i < res->vector.vector_len; i++) {
             printf("%llx\n",res->vector.vector_val[i]);
@@ -137,7 +138,7 @@ query_result *rq_range_root(rq_range_root_args *query)
         printf("Thread %d results\n", i);
         int j;
         for (j = 0; j < results[i]->vector.vector_len; j++) {
-            printf("%llx\n", results[i]->vector.vector_val);
+            printf("%llx\n", results[i]->vector.vector_val[i]);
         }
     }
 

@@ -13,6 +13,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <assert.h>
 #define TIME_TO_VOTE 1 // XXX make this shared between master/slave (general timeout)
 
 query_result *rq_range_root(rq_range_root_args *query);
@@ -42,11 +43,25 @@ init_range_query(unsigned int *range_array, int num_ranges,
     query_result *res = rq_range_root(root);
 
     int i;
+    // political voting data query R:[0,1]
+    u_int64_t expected_res[9] = {
+        0x54787ffedcff9ffb,
+        0x23c183f431f77d7f,
+        0x364f62f19d3c772c,
+        0x7fffffffffffffff,
+        0x7fffffffffffffff,
+        0x7fffffffffffffff,
+        0x7ffffffffffff800,
+        0,
+        0
+    };
+
     if (res->exit_code == EXIT_SUCCESS) {
-        for (i = 1; i < res->vector.vector_len - 1; i++) {
+        for (i = 1; i < res->vector.vector_len; i++) {
             printf("%llx\n",res->vector.vector_val[i]);
+            //assert(res->vector.vector_val[i] == expected_res[i]);
         }
-        printf("%llx\n", res->vector.vector_val[i]);
+        //printf("%llx\n", res->vector.vector_val[i]);
     }
     else {
         printf("Query failed, reason: %s\n", res->error_message);
@@ -63,8 +78,7 @@ query_result *rq_range_root(rq_range_root_args *query)
     pthread_t tids[num_threads];
 
     results = (query_result **) malloc(sizeof(query_result *) * num_threads);
-    int i;
-    int array_index = 0;
+    int i, array_index = 0;
     for (i = 0; i < num_threads; i++) {
         int num_nodes = range_array[array_index++];
         rq_pipe_args *pipe_args = (rq_pipe_args *)
@@ -103,8 +117,7 @@ query_result *rq_range_root(rq_range_root_args *query)
      * Conclude the query. Join each contributing thread,
      * and in doing so, report error if there is one, or report largest vector size
      */
-    u_int result_vector_len = 0;
-    u_int largest_vector_len = 0;
+    u_int result_vector_len = 0, largest_vector_len = 0;
     for (i = 0; i < num_threads; i++) {
         pthread_join(tids[i], NULL);
         /* assuming a single point of failure, report on the failed slave */
@@ -121,6 +134,11 @@ query_result *rq_range_root(rq_range_root_args *query)
         }
         largest_vector_len = max(largest_vector_len,
             results[i]->vector.vector_len);
+        printf("Thread %d results\n", i);
+        int j;
+        for (j = 0; j < results[i]->vector.vector_len; j++) {
+            printf("%llx\n", results[i]->vector.vector_val);
+        }
     }
 
     /* all results found! */
@@ -131,29 +149,31 @@ query_result *rq_range_root(rq_range_root_args *query)
         free(results);
         return res;
     }
+
     u_int64_t *result_vector = (u_int64_t *)
-        malloc(sizeof(u_int64_t) * largest_vector_len); // XXX: is dynamically allocating this necessary??
-    //u_int64_t result_vector[largest_vector_len];
+        malloc(sizeof(u_int64_t) * largest_vector_len);
     memset(result_vector, 0, largest_vector_len * sizeof(u_int64_t));
     /* AND the first 2 vectors together */
     result_vector_len = AND_WAH(result_vector,
         results[0]->vector.vector_val, results[0]->vector.vector_len,
         results[1]->vector.vector_val, results[1]->vector.vector_len) + 1;
+
     /* AND the subsequent vectors together */
     for (i = 2; i < num_threads; i++) {
         u_int64_t *new_result_vector = (u_int64_t *)
             malloc(sizeof(u_int64_t) * largest_vector_len);
+        memset(new_result_vector, 0, sizeof(u_int64_t) * largest_vector_len);
         result_vector_len = AND_WAH(new_result_vector, result_vector,
             result_vector_len, results[i]->vector.vector_val,
             results[i]->vector.vector_len) + 1;
         free(result_vector);
         result_vector = new_result_vector;
     }
+
     /* deallocate the results */
     free(results);
-    res->vector.vector_val = result_vector;
     u_int64_t arr[result_vector_len];
-    memset(result_vector, 0, largest_vector_len * sizeof(u_int64_t));
+    memset(arr, 0, result_vector_len * sizeof(u_int64_t));
     res->vector.vector_val = arr; // XXX is this actually necessary
     memcpy(res->vector.vector_val, result_vector, result_vector_len * sizeof(u_int64_t));
     res->vector.vector_len = result_vector_len;

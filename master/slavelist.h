@@ -21,7 +21,7 @@
 #ifdef DBCAP_2_TEST
     #define NUM_SLAVES 1
     static char SLAVE_ADDR[NUM_SLAVES + 1][32] = {
-        ""
+        "",
         DBC2_ADDR
     };
 #endif /* DBCAP_1_TEST */

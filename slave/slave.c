@@ -114,12 +114,14 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
             memcpy(this_result->vector.vector_val, result_val,
                 sizeof(u_int64_t) * result_len);
             this_result->vector.vector_len = result_len;
-            // puts("Printing intermediate result");
-            // int k;
-            // for (k = 0; k < result_len; k++) {
-            //     printf("%llx\n", result_val[k]);
-            // }
-            // puts("Done printing");
+            /*
+            puts("Printing intermediate result");
+            int k;
+            for (k = 0; k < result_len; k++) {
+                printf("%llx\n", result_val[k]);
+            }
+            puts("Done printing");
+            */
         }
         char *host = query.next->machine_addr;
         CLIENT *client;

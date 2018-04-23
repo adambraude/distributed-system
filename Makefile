@@ -3,8 +3,8 @@ RPC_BIN := rpc/bin
 
 CFLAGS := -Wall
 # Ignore incompatible-pointer-types warnings from `rpcgen`
-# Ignore unused-command-line-argument stemming from "'linker' input unused"
-CIGNORE := -Wno-incompatible-pointer-types -Wno-unused-command-line-argument
+# Ignore unused-variable warnings
+CIGNORE := -Wno-incompatible-pointer-types -Wno-unused-variable
 CC := gcc $(CFLAGS) $(CIGNORE)
 
 all: clean .master .slave .dbms

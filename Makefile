@@ -29,7 +29,7 @@ $(BIN)/tree_map.o:
 	@$(CC) -c -o $(BIN)/master_tpc.o \
 		master/master_tpc_vector.c
 	@echo "Compiling master main"
-	@cp query-planner/iter-mst/mst_planner.py bin/ # TODO Jahrme copy remaining query planners
+	@cp query-planner/iter-mst/mst_planner.py $(BIN) # TODO Jahrme copy remaining query planners
 	@$(CC) -o $(BIN)/master \
 		$(RPC_BIN)/slave_clnt.o \
 		$(RPC_BIN)/slave_xdr.o \
@@ -76,13 +76,13 @@ $(BIN)/tree_map.o:
 
 spawn_slave: all
 	@echo "Starting slave"
-	@cd bin/ && ./slave
+	@cd $(BIN) && ./slave
 
 basic_test: all
-	@cd bin/ && ./dbms 0
+	@cd $(BIN) && ./dbms 0
 
 # Voting data test
 vd_test: all
 	@echo "Creating test data..."
 	@cd tst_data/rep-votes && python3 convert_voting_data.py
-	@cd bin/ && ./dbms 1
+	@cd $(BIN) && ./dbms 1

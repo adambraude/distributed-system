@@ -43,32 +43,16 @@ init_range_query(unsigned int *range_array, int num_ranges,
     query_result *res = rq_range_root(root);
 
     int i;
-    // political voting data query R:[0,1]
-    /*
-    u_int64_t expected_res[9] = {
-        0x54787ffedcff9ffb,
-        0x23c183f431f77d7f,
-        0x364f62f19d3c772c,
-        0x7fffffffffffffff,
-        0x7fffffffffffffff,
-        0x7fffffffffffffff,
-        0x7ffffffffffff800,
-        0,
-        0
-    };
-    */
     if (res->exit_code == EXIT_SUCCESS) {
         for (i = 1; i < res->vector.vector_len; i++) {
             printf("%llx\n",res->vector.vector_val[i]);
-            //assert(res->vector.vector_val[i] == expected_res[i]);
         }
-        //printf("%llx\n", res->vector.vector_val[i]);
     }
     else {
         printf("Query failed, reason: %s\n", res->error_message);
     }
     free(root);
-    //free(res);
+    free(range_array);
     return EXIT_SUCCESS;
 }
 
@@ -123,23 +107,10 @@ query_result *rq_range_root(rq_range_root_args *query)
         pthread_join(tids[i], NULL);
         /* assuming a single point of failure, report on the failed slave */
         if (results[i]->exit_code != EXIT_SUCCESS) {
-            /*
-            res->exit_code = results[i]->exit_code;
-            char *msg = results[i]->error_message;
-            res->error_message = (char *) malloc(sizeof(msg));
-            strcpy(res->error_message, msg);
-            res->failed_machine_id = results[i]->failed_machine_id;
-            return res;
-            */
-            return results[i]; // TODO: probably want to free the other stuff too
+            return results[i];
         }
         largest_vector_len = max(largest_vector_len,
             results[i]->vector.vector_len);
-        printf("Thread %d results\n", i);
-        int j;
-        for (j = 0; j < results[i]->vector.vector_len; j++) {
-            printf("%llx\n", results[i]->vector.vector_val[i]);
-        }
     }
 
     /* all results found! */

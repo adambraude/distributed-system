@@ -58,7 +58,7 @@ int main(int argc, char *argv[])
     struct msgbuf *request;
     struct msqid_ds buf;
     int rc;
-
+    dead_slave = NULL;
     // SETUP
 
     /* setup values, acquired from slavelist.h */
@@ -73,12 +73,6 @@ int main(int argc, char *argv[])
         if (setup_slave(s)) { // could not connect
             printf("MASTER: Could not register machine %s\n",
                 SLAVE_ADDR[i]);
-            // dealloc(slavelist)
-            //exit(1);
-            //return EXIT_FAILURE;
-            // s->is_alive = false;
-            // dead_slave = s;
-            // num_living_slaves--;
         }
         else {
             slavelist->slave_node = s;
@@ -169,7 +163,6 @@ int main(int argc, char *argv[])
                     commit_slaves, replication_factor);
                 if (commit_res) {
                     heartbeat();
-
                 }
             }
             else if (request->mtype == mtype_range_query) {
@@ -197,10 +190,15 @@ int main(int argc, char *argv[])
 
     /* deallocation */
     while (slavelist != NULL) {
+        free(slavelist->slave_node->address);
         free(slavelist->slave_node);
         slave_ll *temp = slavelist->next;
         free(slavelist);
         slavelist = temp;
+    }
+    if (dead_slave != NULL) {
+        free(dead_slave->address);
+        free(dead_slave);
     }
 
 }
@@ -222,6 +220,8 @@ int starfish(range_query_contents contents)
 
     /* this array will eventually include data for the coordinator
        slave's RPC  as described in the distributed system wiki. */
+
+    /* NB: freed in master_rq */
     u_int *range_array = (u_int *) malloc(sizeof(u_int) * num_ints_needed);
     int array_index = 0;
     bool flip = true;

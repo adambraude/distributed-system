@@ -67,14 +67,13 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
     /* Recursive Query */
     else {
         printf("Going to visit %s\n", query.next->machine_addr);
-        while (!strcmp(query.next->machine_addr, SLAVE_ADDR[slave_id])) { // TODO: pass slave ID, so that we don't have to pass address, and save comparison time,
+        while (!strcmp(query.next->machine_addr, SLAVE_ADDR[slave_id])) {
             next_result = get_vector(query.next->vec_id);
             u_int result_len = 0;
             u_int v_len = max(this_result->vector.vector_len,
                 next_result->vector.vector_len);
             u_int64_t result_val[v_len];
             memset(result_val, 0, v_len);
-            // TODO: move to separate function, avoiding need for copy-paste job
 
             if (query.op == '|') {
                 result_len = OR_WAH(result_val,
@@ -114,14 +113,6 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
             memcpy(this_result->vector.vector_val, result_val,
                 sizeof(u_int64_t) * result_len);
             this_result->vector.vector_len = result_len;
-            /*
-            puts("Printing intermediate result");
-            int k;
-            for (k = 0; k < result_len; k++) {
-                printf("%llx\n", result_val[k]);
-            }
-            puts("Done printing");
-            */
         }
         char *host = query.next->machine_addr;
         CLIENT *client;
@@ -235,7 +226,6 @@ int *commit_vec_1_svc(struct commit_vec_args args, struct svc_req *req)
     /* first element of the should be 0, to work with WAHQuery.c
      so don't bother storing it*/
     for (i = 1; i < args.vector.vector_len; i++) {
-        //printf("Vector val: %llu", args.vector.vector_val[i]);
         snprintf(line_buffer, 32, "%llx\n", args.vector.vector_val[i]);
         strcat(buffer, line_buffer);
     }
@@ -273,7 +263,6 @@ int *send_vec_1_svc(copy_vector_args copy_args, struct svc_req *req)
     memcpy(&args.vector, &qres->vector, sizeof(qres->vector));
     result = *commit_vec_1_svc(args, cl);
     free(qres);
-    //free(args);
     return &result;
 }
 

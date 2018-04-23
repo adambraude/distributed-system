@@ -1,7 +1,6 @@
 /**
  *  RPCs for Slave
  */
-
 /**
  *  Pipe Query
  *
@@ -27,6 +26,23 @@ struct query_result {
     string error_message<128>;
 };
 
+/*
+struct btree_query_args {
+    struct btree_query_args* recur_query_list;
+    unsigned int recur_query_list_len;
+    unsigned int local_vectors<>;
+    char local_ops<>;
+    char subquery_ops<>;
+    string this_machine_address<32>;
+};
+
+program BTREE_QUERY_PIPE {
+    version BTREE_QUERY_PIPE_V1 {
+        query_result BTREE_QUERY(btree_query_args) = 1;
+    } = 1;
+} = 0x80;
+*/
+
 program REMOTE_QUERY_PIPE {
     version REMOTE_QUERY_PIPE_V1 {
         query_result RQ_PIPE(rq_pipe_args) = 1;
@@ -49,11 +65,13 @@ struct rq_range_root_args {
     char ops<>;
 };
 
+/*
 program REMOTE_QUERY_ROOT {
     version REMOTE_QUERY_ROOT_V1 {
         query_result RQ_RANGE_ROOT(rq_range_root_args) = 1;
     } = 1;
 } = 0x10;
+*/
 
 struct commit_vec_args {
     unsigned int vec_id;

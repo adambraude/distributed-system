@@ -29,15 +29,17 @@ $(BIN)/tree_map.o:
 	@$(CC) -c -o $(BIN)/master_tpc.o \
 		master/master_tpc_vector.c
 	@echo "Compiling master main"
-	@cp consistent-hash/ring/src/ringhash.py $(BIN)/
+	@cp query-planner/iter-mst/mst_planner.py $(BIN) # TODO Jahrme copy remaining query planners
 	@$(CC) -o $(BIN)/master \
 		$(RPC_BIN)/slave_clnt.o \
 		$(RPC_BIN)/slave_xdr.o \
 		$(BIN)/tree_map.o \
 		$(BIN)/master_rq.o \
 		$(BIN)/master_tpc.o \
+		$(BIN)/WAHQuery.o \
+		$(BIN)/SegUtil.o \
 		master/master.c \
-		-lssl -lcrypto -lm -lpthread -lpython2.7
+		-lssl -lcrypto -lm -lpthread -lpython2.7 # TODO: make `MASTER_FLAGS` target
 
 .engine:
 	@echo "Compiling Bitmap Engine Query function"
@@ -49,6 +51,7 @@ $(BIN)/tree_map.o:
 .slave: .rpc .engine .bitmap-vector
 	@echo "Compiling Slave"
 	@$(CC) -o $(BIN)/slave \
+		$(RPC_BIN)/slave_clnt.o \
 		$(RPC_BIN)/slave_svc.o \
 		$(RPC_BIN)/slave_xdr.o \
 		$(BIN)/WAHQuery.o \
@@ -73,13 +76,13 @@ $(BIN)/tree_map.o:
 
 spawn_slave: all
 	@echo "Starting slave"
-	@cd bin/ && ./slave
+	@cd $(BIN) && ./slave
 
 basic_test: all
-	@cd bin/ && ./dbms 0
+	@cd $(BIN) && ./dbms 0
 
 # Voting data test
 vd_test: all
 	@echo "Creating test data..."
 	@cd tst_data/rep-votes && python3 convert_voting_data.py
-	@cd bin/ && ./dbms 1
+	@cd $(BIN) && ./dbms 1

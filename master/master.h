@@ -38,7 +38,7 @@ int setup_slave(slave*);
 slave *new_slave(char*);
 int heartbeat(void);
 bool is_alive(char *);
-unsigned int *get_machines_for_vector(unsigned int);
+unsigned int *get_machines_for_vector(unsigned int, bool);
 int send_vector(slave *, vec_id_t, slave*);
 void reallocate(void);
 int starfish(range_query_contents);

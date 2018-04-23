@@ -10,7 +10,6 @@
 #include <stdint.h>
 #include "tree_map.h"
 #include <math.h>
-#include </usr/include/python2.7/Python.h>
 
 /* RBT op prototypes */
 /* RBT initialization functions */
@@ -58,12 +57,9 @@ static int replication_factor = 2;
 
 cache_id *ring_get_machines_for_vector(rbt_ptr t, unsigned int vec_id)
 {
-    // ideally this should be a for-loop
-    // node_ptr n1 = succ(t, hash(vec_id));
-    // node_ptr n2 = succ(t, hash(vec_id + 1));
     cache_id *res = (cache_id *) malloc(sizeof(cache_id) * replication_factor);
     node_ptr primary_node = succ(t, hash(vec_id));
-    node_ptr backup_node = succ(t, primary_node->hv);
+    node_ptr backup_node = succ(t, primary_node->hv + 1);
     res[0] = primary_node->cid;
     res[1] = backup_node->cid;
     return res;
@@ -428,36 +424,32 @@ void rbt_delete_fixup(rbt_ptr t, node_ptr x)
     x->color = BLACK;
 }
 
-// TODO: call Python hash function instead
+/**
+ * Computes a 64-bit SHA1 hash of the given key.
+ * source: https://memset.wordpress.com/2010/10/06/using-sha1-function/
+ */
 uint64_t hash(unsigned long key)
 {
-    u_int64_t digest = 0;
-    Py_Initialize();
-    PyObject *pName, *pModule;
-    PySys_SetPath(".");
-    pName = PyString_FromString("ringhash");
-    pModule = PyImport_Import(pName);
-    if (pModule != NULL) {
-        PyObject *pyArg, *pFunc, *pValue;
-        pyArg = PyInt_FromLong(key);
-        pFunc = PyObject_GetAttrString(pModule, "ringhash");
-        pValue = PyObject_CallFunctionObjArgs(pFunc, pyArg, NULL);
-        digest = PyInt_AsLong(pValue);
+    int i;
+    unsigned char temp[SHA_DIGEST_LENGTH];
+    char buf[SHA_DIGEST_LENGTH * 2];
+    char ibuf[32];
+    snprintf(ibuf, 32, "%lu", key);
+
+    memset(buf, 0x0, SHA_DIGEST_LENGTH * 2);
+    memset(temp, 0x0, SHA_DIGEST_LENGTH);
+
+    SHA1((unsigned char *) ibuf, strlen(ibuf), temp);
+
+    for (i = 0; i < SHA_DIGEST_LENGTH; i++) {
+        sprintf((char *) &(buf[i * 2]), "%02x", temp[i]);
     }
-    else { // couldn't find python module, use C
-        const unsigned char ibuf[256];
-        sprintf((char *) ibuf, "%lu", key);
-        unsigned char obuf[256];
-        SHA256(ibuf, strlen((const char *)ibuf), obuf);
-        int i;
-        unsigned long long digest = 0;
-        int s = strlen((const char *)obuf);
-        for (i = 0; i < s; i++) {
-            digest += (unsigned long long )(fabs(pow(2.0, (double)i) ) * (obuf[i]));
-        }
-    }
-    Py_Finalize();
-    return digest;
+    int buflen = 15; // we can only take the first 15 bytes due to C technical limits
+    char lbuf[buflen];
+    for (i = 0; i < buflen; i++) lbuf[i] = buf[i];
+    lbuf[buflen] = '\0';
+
+    return strtoull(lbuf, NULL, 16); // TODO: could force this into positive range, but it doesn't matter
 }
 
 

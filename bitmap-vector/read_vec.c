@@ -16,9 +16,11 @@ vec_t *read_vector(char *path)
         return NULL;
     else {
         u_int64_t vector_val[128];
+        memset(vector_val, 0, 128 * sizeof(u_int64_t));
         u_int vector_len = 0;
         vec_t *return_vector = (vec_t *) malloc(sizeof(vec_t));
         char buf[32];
+        // XXX: could have flag variable: can do this if reading for query.
         vector_val[vector_len++] = 0; // XXX: trying to get it to work with the BitmapEngine this way
         while (vector_len < 128 && fgets(buf, 32, fp) != NULL)
             vector_val[vector_len++] = (u_int64_t) strtoul(buf, NULL, 16);

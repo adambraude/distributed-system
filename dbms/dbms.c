@@ -2,7 +2,6 @@
 #include "../ipc/messages.h"
 #include "../types/types.h"
 #include "../bitmap-vector/read_vec.h"
-//#include "../../bitmap-engine/BitmapEngine/src/wah/WAHCompressor.h"
 
 #include <errno.h>
 #include <stdbool.h>
@@ -80,6 +79,11 @@ int main(int argc, char *argv[])
     /* Create message queue. */
     int msq_id = msgget(MSQ_KEY, MSQ_PERMISSIONS | IPC_CREAT);
 
+    /* Go to sleep for a bit, to wait for everything to start */
+    //puts("DBMS sleeping");
+    //sleep(10); // XXX empirically determined?
+    //puts("DBMS: woke up");
+
     /* TESTS */
     int test_no = atoi(argv[1]);
 
@@ -124,7 +128,7 @@ int main(int argc, char *argv[])
         }
 
         /* querying */
-        //char range[] = "R:[0,3]&[4,6]&[15,18]";
+        //char range[] = "R:[0,3]&[4,6]&[15,18]&[20,31]";
         char range[] = "R:[0,1]";
         range_query(msq_id, range);
     }
@@ -206,7 +210,6 @@ int range_query(int queue_id, char *query_str)
        bounds[0] = r1;
        bounds[1] = r2;
        ranges[num_ranges] = bounds;
-       printf("Adding range %d to %d\n", r1, r2);
        token = strtok(NULL, delim);
        if (token != NULL)
            ops[num_ranges] = token[0];
@@ -224,7 +227,7 @@ int range_query(int queue_id, char *query_str)
 
    contents->num_ranges = num_ranges;
    range->range_query = *contents;
-   printf("Sending a message to queue\n");
+   //printf("Sending a message to queue\n");
    msgsnd(queue_id, range, sizeof(msgbuf), 0);
    free(contents);
    free(ops);

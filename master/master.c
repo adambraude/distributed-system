@@ -173,7 +173,7 @@ int main(int argc, char *argv[])
     for (query = 0; query < TEST_NUM_QUERIES; query++) {
         printf("QUERY(%d)\n", query);
 
-        query_str = malloc(sizeof(char) * TEST_MAX_LINE_LEN);
+        char query_str[TEST_MAX_LINE_LEN];
 
         fgets(query_str, TEST_MAX_LINE_LEN - 1, fp);
         /* Get rid of CR or LF at end of line */
@@ -200,8 +200,7 @@ int main(int argc, char *argv[])
 
         /* Allocate 2D array of range pointers */
         unsigned int range_count = num_ranges;
-        vec_id_t **ranges = (vec_id_t **)
-            malloc(sizeof(vec_id_t *) * range_count);
+        vec_id_t ranges[range_count][2];
 
         /* parse out ranges and operators */
         num_ranges = 0;
@@ -210,10 +209,11 @@ int main(int argc, char *argv[])
             r1 = atoi(token);
             token = strtok(NULL, delim);
             r2 = atoi(token);
-            vec_id_t *bounds = (vec_id_t *) malloc(sizeof(vec_id_t) * 2);
-            bounds[0] = r1;
-            bounds[1] = r2;
-            ranges[num_ranges] = bounds;
+            //vec_id_t *bounds = (vec_id_t *) malloc(sizeof(vec_id_t) * 2);
+            // bounds[0] = r1;
+            // bounds[1] = r2;
+            ranges[num_ranges][0] = r1;
+            ranges[num_ranges][1] = r2;
             token = strtok(NULL, delim);
             if (token != NULL)
                 ops[num_ranges] = token[0];
@@ -224,6 +224,7 @@ int main(int argc, char *argv[])
             malloc(sizeof(range_query_contents));
 
         /* fill in the data */
+        // TODO move to above `while` loop!
         for (i = 0; i < num_ranges; i++) {
             contents->ranges[i][0] = ranges[i][0];
             contents->ranges[i][1] = ranges[i][1];
@@ -250,10 +251,9 @@ int main(int argc, char *argv[])
         }
 
         /* free bounds */
-        for (i = 0; i < range_count; i++)
-            free(ranges[i]);
-        free(ranges);
-        free(query_str);
+        // for (i = 0; i < range_count; i++)
+        //     free(ranges[i]);
+        // free(ranges);
         free(contents);
         free(ops);
     }

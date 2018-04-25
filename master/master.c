@@ -20,7 +20,7 @@
 #include "../types/types.h"
 
 #define TEST_NUM_VECTORS 100
-#define TEST_NUM_QUERIES 13
+#define TEST_NUM_QUERIES 45
 #define TEST_MAX_LINE_LEN 5120
 
 #define MS_DEBUG false
@@ -165,7 +165,7 @@ int main(int argc, char *argv[])
     }
 
     /* READ queries */
-    FILE *fp = fopen("../tst_data/tpc/qs/qs.dat", "r");
+    FILE *fp = fopen("../tst_data/tpc/qs/qs2.dat", "r");
     char *query_str;
     char *ops;
 
@@ -173,7 +173,7 @@ int main(int argc, char *argv[])
     for (query = 0; query < TEST_NUM_QUERIES; query++) {
         printf("QUERY(%d)\n", query);
 
-        query_str = malloc(sizeof(char) * TEST_MAX_LINE_LEN);
+        char query_str[TEST_MAX_LINE_LEN];
 
         fgets(query_str, TEST_MAX_LINE_LEN - 1, fp);
         /* Get rid of CR or LF at end of line */
@@ -197,11 +197,10 @@ int main(int argc, char *argv[])
         /* grab first element */
         token = strtok(token, delim);
         ops = (char *) malloc(sizeof(char) * num_ranges);
-
+        puts("ops malloc");
         /* Allocate 2D array of range pointers */
         unsigned int range_count = num_ranges;
-        vec_id_t **ranges = (vec_id_t **)
-            malloc(sizeof(vec_id_t *) * range_count);
+        vec_id_t ranges[128][2];
 
         /* parse out ranges and operators */
         num_ranges = 0;
@@ -210,19 +209,21 @@ int main(int argc, char *argv[])
             r1 = atoi(token);
             token = strtok(NULL, delim);
             r2 = atoi(token);
-            vec_id_t *bounds = (vec_id_t *) malloc(sizeof(vec_id_t) * 2);
-            bounds[0] = r1;
-            bounds[1] = r2;
-            ranges[num_ranges] = bounds;
+            //vec_id_t *bounds = (vec_id_t *) malloc(sizeof(vec_id_t) * 2);
+            // bounds[0] = r1;
+            // bounds[1] = r2;
+            ranges[num_ranges][0] = r1;
+            ranges[num_ranges][1] = r2;
             token = strtok(NULL, delim);
             if (token != NULL)
                 ops[num_ranges] = token[0];
             token = strtok(NULL, delim);
             num_ranges++;
         }
+        puts("while done");
         range_query_contents *contents = (range_query_contents *)
             malloc(sizeof(range_query_contents));
-
+        puts("filling in data");
         /* fill in the data */
         for (i = 0; i < num_ranges; i++) {
             contents->ranges[i][0] = ranges[i][0];
@@ -231,11 +232,12 @@ int main(int argc, char *argv[])
         }
 
         contents->num_ranges = num_ranges;
-
+        puts("Entering switch stmt");
 
         switch (query_plan_t) {
             /* TODO: fill in cases */
             case STARFISH: {
+                puts("calling starfish");
                 while (starfish(*contents))
                     heartbeat();
                 break;
@@ -250,10 +252,10 @@ int main(int argc, char *argv[])
         }
 
         /* free bounds */
-        for (i = 0; i < range_count; i++)
-            free(ranges[i]);
-        free(ranges);
-        free(query_str);
+        // for (i = 0; i < range_count; i++)
+        //     free(ranges[i]);
+        // free(ranges);
+        //free(query_str);
         free(contents);
         free(ops);
     }
@@ -337,6 +339,7 @@ int starfish(range_query_contents contents)
         }
         free(machine_vec_ptrs);
     }
+    puts("init_range_query");
     return init_range_query(range_array, contents.num_ranges,
         contents.ops, array_index);
 }

@@ -69,7 +69,7 @@ int commit_vector(vec_id_t vec_id, vec_t vector, slave *slaves[], int num_slaves
 void *get_commit_resp(void *slv_addr_arg)
 {
     char *slv_addr = (char *) slv_addr_arg;
-    printf("Connecting to %s, creating clnt\n", slv_addr);
+    // printf("Connecting to %s, creating clnt\n", slv_addr);
     CLIENT *clnt = clnt_create(slv_addr, TWO_PHASE_COMMIT,
         TWO_PHASE_COMMIT_V1, "tcp");
     if (clnt == NULL) {
@@ -113,11 +113,13 @@ void *push_vector(void *thread_arg)
     a->vector.vector_len = args->vector.vector_length;
     int *result = commit_vec_1(*a, cl);
 
+    clnt_destroy(cl);
+
     if (result == NULL) {
         printf("Commit failed.\n");
         return (void*) 1;
     }
-    printf("Commit succeeded.\n");
+    // printf("Commit succeeded.\n");
     return (void*) 0;
 }
 

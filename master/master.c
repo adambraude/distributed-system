@@ -1,20 +1,27 @@
-#include "master.h"
-#include "tpc_master.h"
-#include "master_rq.h"
-#include "slavelist.h"
-#include "../consistent-hash/ring/src/tree_map.h"
-#include "../types/types.h"
-
+#include <assert.h>
 #include <errno.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <assert.h>
+
+#include <time.h>
 
 #include <sys/ipc.h>
 #include <sys/types.h>
+
+#include "master.h"
+#include "master_rq.h"
+#include "slavelist.h"
+#include "tpc_master.h"
+#include "../bitmap-vector/read_vec.h"
+#include "../consistent-hash/ring/src/tree_map.h"
+#include "../types/types.h"
+
+#define TEST_NUM_VECTORS 5000
+#define TEST_NUM_QUERIES 1000
+#define TEST_MAX_LINE_LEN 100
 
 #define MS_DEBUG false
 
@@ -24,14 +31,19 @@ u_int slave_id_counter = 1;
 u_int partition_t;
 u_int query_plan_t;
 int num_slaves;
-slave *dead_slave; /* slave presumed dead, waiting to be reawakened (assumes 1 dead slave at a time) */
+
+/*
+ * slave presumed dead,
+ * waiting to be reawakened (assumes 1 dead slave at a time)
+ */
+slave *dead_slave;
 int separation;
 
 /* Ring CH variables */
 rbt_ptr chash_table;
 
 /* static partition variables */
-int *partition_scale_1, *partition_scale_2; // partitions and backups
+int *partition_scale_1, *partition_scale_2; /* partitions and backups */
 u_int num_keys; /* e.g., value of largest known key, plus 1 */
 
 u_int max_vector_len;
@@ -43,36 +55,28 @@ u_int max_vector_len;
  */
 int main(int argc, char *argv[])
 {
-    // XXX: running with defaults for now (r = 3, and hardcoded slave addresses)
-    /*
-    if (argc < 3) {
-        printf("Usage: -p partition_type -ml max_vector_len [-k num_keys] [-r repl_factor] -s slave_addr1 [... slave_addrn]\n");
-        return 1;
-    }
-    */
+    int i, j;
+
     /* Connect to message queue. */
     partition_t = RING_CH;
     query_plan_t = STARFISH;
-    int msq_id = msgget(MSQ_KEY, MSQ_PERMISSIONS | IPC_CREAT);
-    /* Container for messages. */
-    struct msgbuf *request;
-    struct msqid_ds buf;
-    int rc;
+
+    /* Holder for a dead slave */
     dead_slave = NULL;
-    // SETUP
 
     /* setup values, acquired from slavelist.h */
     num_slaves = NUM_SLAVES;
-    // index in slave list will be the machine ID (0 is master)
+    if (num_slaves == 1) replication_factor = 1;
+
+    /* index in slave list will be the machine ID (0 is master) */
     slavelist = (slave_ll *) malloc(sizeof(slave_ll));
     slave_ll *head = slavelist;
-    if (num_slaves == 1) replication_factor = 1;
-    int i;
     for (i = 1; i <= num_slaves; i++) {
-        slave *s = new_slave(SLAVE_ADDR[i]); // TODO: when we use CLI args, change this array
-        if (setup_slave(s)) { // could not connect
-            printf("MASTER: Could not register machine %s\n",
-                SLAVE_ADDR[i]);
+        /* TODO: when we use CLI args, change this array */
+        slave *s = new_slave(SLAVE_ADDR[i]);
+        /* could not connect */
+        if (setup_slave(s)) {
+            printf("MASTER: Could not register machine %s\n", SLAVE_ADDR[i]);
         }
         else {
             slavelist->slave_node = s;
@@ -87,6 +91,7 @@ int main(int argc, char *argv[])
     }
     slavelist->next = NULL;
     slavelist = head;
+
     /*
      * setup partitions
      */
@@ -95,7 +100,7 @@ int main(int argc, char *argv[])
             chash_table = new_rbt();
             slave_ll *head = slavelist;
             while (head != NULL) {
-                struct cache *cptr = (struct cache*) malloc(sizeof(struct cache));
+                cache *cptr = (cache*) malloc(sizeof(cache));
                 cptr->id = head->slave_node->id;
                 cptr->cache_name = head->slave_node->address;
                 cptr->replication_factor = 1;
@@ -108,7 +113,7 @@ int main(int argc, char *argv[])
         }
 
         case JUMP_CH: {
-            // TODO setup jump
+            /* TODO setup jump */
             break;
         }
 
@@ -128,65 +133,136 @@ int main(int argc, char *argv[])
         }
     }
 
-    /* message receipt loop */
-    while (true) {
-        msgctl(msq_id, IPC_STAT, &buf);
-        //puts("beating heart");
-        if (heartbeat()) return 1; // TODO: this can be called elsewhere
-        if (buf.msg_qnum > 0) {
-            request = (struct msgbuf *) malloc(sizeof(msgbuf));
-            /* Grab from queue. */
-            // TODO fill in messages
-            rc = msgrcv(msq_id, request, sizeof(msgbuf), 0, 0);
+    /* For measuring query time. */
+    clock_t start_time = clock();
 
-            /* Error Checking */
-            if (rc < 0) {
-                perror( strerror(errno) );
-                printf("msgrcv failed, rc = %d\n", rc);
-                continue;
-            }
+    /* PUT vectors */
+    int vec_id;
+    char buf[64];
+    for (vec_id = 0; vec_id < TEST_NUM_VECTORS; vec_id++) {
+        snprintf(buf, 64, "../tst_data/vec/v_%d.dat", vec_id);
+        vec_t *vec = read_vector(buf);
 
-            if (request->mtype == mtype_put) {
-                slave *commit_slaves[replication_factor];
-                u_int *slave_ids =
-                    get_machines_for_vector(request->vector.vec_id, true);
-                slave_ll *head = slavelist;
-                int cs_index = 0;
-                while (head != NULL) {
-                    if (head->slave_node->id == slave_ids[0] ||
-                        head->slave_node->id == slave_ids[1])
-                        commit_slaves[cs_index++] = head->slave_node;
-                    if (cs_index == replication_factor) break;
-                    head = head->next;
-                }
-                int commit_res = commit_vector(request->vector.vec_id, request->vector.vec,
-                    commit_slaves, replication_factor);
-                if (commit_res) {
-                    heartbeat();
-                }
-            }
-            else if (request->mtype == mtype_range_query) {
-                range_query_contents contents = request->range_query;
-                switch (query_plan_t) { // TODO: fill in cases
-                    case STARFISH: {
-                        while (starfish(contents))
-                            heartbeat();
-                        break;
-                    }
-                    case UNISTAR:
-                    case MULTISTAR:
-                    case ITER_PRIM: {
-                        //init_btree_range_query(contents); // TODO (for conference version)
-                        break;
-                    }
-                }
-            }
-            else if (request->mtype == mtype_point_query) {
-                /* TODO: Call Jahrme function here */
-            }
-            free(request);
+        slave *commit_slaves[replication_factor];
+        u_int *slave_ids = get_machines_for_vector(vec_id, true);
+        slave_ll *head = slavelist;
+
+        int cs_index = 0;
+        while (head != NULL) {
+            if (head->slave_node->id == slave_ids[0] ||
+                head->slave_node->id == slave_ids[1])
+                commit_slaves[cs_index++] = head->slave_node;
+            if (cs_index == replication_factor) break;
+            head = head->next;
+        }
+
+        int commit_res = commit_vector(vec_id, *vec, commit_slaves, replication_factor);
+
+        if (commit_res) {
+            heartbeat();
         }
     }
+
+    /* READ queries */
+    FILE *fp = fopen("../tst_data/vec/qs.dat", "r");
+    char *query_str;
+    char *ops;
+
+    int query;
+    for (query = 0; query < TEST_NUM_QUERIES; query++) {
+        printf("Performing query %d\n", query);
+
+        query_str = malloc(sizeof(char) * TEST_MAX_LINE_LEN);
+
+        fgets(query_str, TEST_MAX_LINE_LEN - 1, fp);
+        /* Get rid of CR or LF at end of line */
+        for (j = strlen(query_str) - 1;
+            j >= 0 && (query_str[j] == '\n' || query_str[j] == '\r');
+            j--) query_str[j + 1] = '\0';
+
+        /**
+         * first pass: figure out how many ranges are in the query,
+         * to figure out how much memory to allocate.
+         */
+        unsigned int num_ranges = 0;
+        i = 0;
+        while (query_str[i] != '\0') {
+            if (query_str[i++] == ',') num_ranges++;
+        }
+
+        static char delim[] = "[,]";
+        char *token = strtok(query_str, "R:");
+
+        /* grab first element */
+        token = strtok(token, delim);
+        ops = (char *) malloc(sizeof(char) * num_ranges);
+
+        /* Allocate 2D array of range pointers */
+        unsigned int range_count = num_ranges;
+        vec_id_t **ranges = (vec_id_t **)
+            malloc(sizeof(vec_id_t *) * range_count);
+
+        /* parse out ranges and operators */
+        num_ranges = 0;
+        int r1, r2;
+        while (token != NULL) {
+            r1 = atoi(token);
+            token = strtok(NULL, delim);
+            r2 = atoi(token);
+            vec_id_t *bounds = (vec_id_t *) malloc(sizeof(vec_id_t) * 2);
+            bounds[0] = r1;
+            bounds[1] = r2;
+            ranges[num_ranges] = bounds;
+            token = strtok(NULL, delim);
+            if (token != NULL)
+                ops[num_ranges] = token[0];
+            token = strtok(NULL, delim);
+            num_ranges++;
+        }
+        range_query_contents *contents = (range_query_contents *)
+            malloc(sizeof(range_query_contents));
+
+        /* fill in the data */
+        for (i = 0; i < num_ranges; i++) {
+            contents->ranges[i][0] = ranges[i][0];
+            contents->ranges[i][1] = ranges[i][1];
+            if (i != num_ranges - 1) contents->ops[i] = ops[i];
+        }
+
+        contents->num_ranges = num_ranges;
+
+
+        switch (query_plan_t) {
+            /* TODO: fill in cases */
+            case STARFISH: {
+                while (starfish(*contents))
+                    heartbeat();
+                break;
+            }
+            case UNISTAR:
+            case MULTISTAR:
+            case ITER_PRIM: {
+                /* init_btree_range_query(contents); */
+                /* TODO (for conference version) */
+                break;
+            }
+        }
+
+        /* free bounds */
+        for (i = 0; i < range_count; i++)
+            free(ranges[i]);
+        free(ranges);
+        free(query_str);
+        free(contents);
+        free(ops);
+    }
+    fclose(fp);
+
+    clock_t end_time = clock();
+
+    long double elapsed_time =
+        (long double) (end_time - start_time) / CLOCKS_PER_SEC;
+    printf("Time elapsed: %Lf\n", elapsed_time);
 
     /* deallocation */
     while (slavelist != NULL) {
@@ -200,10 +276,7 @@ int main(int argc, char *argv[])
         free(dead_slave->address);
         free(dead_slave);
     }
-
 }
-
-
 
 int starfish(range_query_contents contents)
 {

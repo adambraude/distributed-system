@@ -2,9 +2,7 @@ BIN := bin
 RPC_BIN := rpc/bin
 
 CFLAGS := -Wall
-# Ignore incompatible-pointer-types warnings from `rpcgen`
-# Ignore unused-command-line-argument stemming from "'linker' input unused"
-CIGNORE := -Wno-incompatible-pointer-types -Wno-unused-command-line-argument
+CIGNORE := -Wno-incompatible-pointer-types -Wno-unused-variable
 CC := gcc $(CFLAGS) $(CIGNORE)
 
 all: clean .master .slave .dbms
@@ -22,7 +20,7 @@ $(BIN)/tree_map.o:
 	@echo "Compiling RPC modules"
 	@cd rpc && make
 
-.master: .slave .rpc $(BIN)/tree_map.o
+.master: .slave .rpc .bitmap-vector $(BIN)/tree_map.o
 	@echo "Compiling Master"
 	@$(CC) -c -o $(BIN)/master_rq.o \
 		master/master_rq.c
@@ -38,8 +36,9 @@ $(BIN)/tree_map.o:
 		$(BIN)/master_tpc.o \
 		$(BIN)/WAHQuery.o \
 		$(BIN)/SegUtil.o \
+		$(BIN)/read_vec.o \
 		master/master.c \
-		-lssl -lcrypto -lm -lpthread -lpython2.7 # TODO: make `MASTER_FLAGS` target
+		-lssl -lpthread -lcrypto -lm -lpython2.7 # TODO: make `MASTER_FLAGS` target
 
 .engine:
 	@echo "Compiling Bitmap Engine Query function"
@@ -58,7 +57,7 @@ $(BIN)/tree_map.o:
 		$(BIN)/SegUtil.o \
 		$(BIN)/read_vec.o \
 		slave/slave.c \
-		-lpthread -lm
+		-lm
 
 .dbms: .bitmap-vector
 	@echo "Compiling DBMS"
@@ -86,3 +85,7 @@ vd_test: all
 	@echo "Creating test data..."
 	@cd tst_data/rep-votes && python3 convert_voting_data.py
 	@cd $(BIN) && ./dbms 1
+
+# TPC Benchmarking Data Test
+tpc_test: all
+	@cd $(BIN) && ./master

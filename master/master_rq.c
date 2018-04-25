@@ -17,10 +17,12 @@
 #define TIME_TO_VOTE 1 // XXX make this shared between master/slave (general timeout)
 
 query_result *rq_range_root(rq_range_root_args *query);
+
 typedef struct coord_thread_args {
     rq_pipe_args *args;
     int query_result_index;
 } coord_thread_args;
+
 void *init_coordinator_thread(void *coord_args);
 query_result **results;
 
@@ -45,7 +47,7 @@ init_range_query(unsigned int *range_array, int num_ranges,
     int i;
     if (res->exit_code == EXIT_SUCCESS) {
         for (i = 1; i < res->vector.vector_len; i++) {
-            printf("%llx\n",res->vector.vector_val[i]);
+            printf("%lx\n",res->vector.vector_val[i]);
         }
     }
     else {
@@ -147,7 +149,9 @@ query_result *rq_range_root(rq_range_root_args *query)
     u_int64_t arr[result_vector_len];
     memset(arr, 0, result_vector_len * sizeof(u_int64_t));
     res->vector.vector_val = arr; // XXX is this actually necessary
-    memcpy(res->vector.vector_val, result_vector, result_vector_len * sizeof(u_int64_t));
+    memcpy(res->vector.vector_val, result_vector,
+        result_vector_len * sizeof(u_int64_t));
+    free(result_vector);
     res->vector.vector_len = result_vector_len;
     return res;
 }

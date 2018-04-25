@@ -128,6 +128,10 @@ query_result *rq_range_root(rq_range_root_args *query)
         malloc(sizeof(u_int64_t) * largest_vector_len);
     memset(result_vector, 0, largest_vector_len * sizeof(u_int64_t));
     /* AND the first 2 vectors together */
+    puts("vector 0");
+    print_vector(results[0]->vector.vector_val, results[0]->vector.vector_len);
+    puts("vector 1");
+    print_vector(results[1]->vector.vector_val, results[1]->vector.vector_len);
     result_vector_len = AND_WAH(result_vector,
         results[0]->vector.vector_val, results[0]->vector.vector_len,
         results[1]->vector.vector_val, results[1]->vector.vector_len) + 1;
@@ -171,6 +175,9 @@ char *machine_failure_msg(char *machine_name)
 void *init_coordinator_thread(void *coord_args) {
     coord_thread_args *args = (coord_thread_args *) coord_args;
 
+    puts("print addr");
+    printf("%s\n", args->args->machine_addr);
+    puts("printed addr");
     CLIENT *clnt = clnt_create(args->args->machine_addr,
         REMOTE_QUERY_PIPE, REMOTE_QUERY_PIPE_V1, "tcp");
     if (clnt == NULL) {

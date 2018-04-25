@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/types.h>
 #include <string.h>
 #include "read_vec.h"
 
@@ -15,19 +14,28 @@ vec_t *read_vector(char *path)
     if (fp == NULL)
         return NULL;
     else {
-        u_int64_t vector_val[128];
-        memset(vector_val, 0, 128 * sizeof(u_int64_t));
+        u_int64_t vector_val[MAX_VECTOR_LEN];
+        memset(vector_val, 0, MAX_VECTOR_LEN * sizeof(u_int64_t));
         u_int vector_len = 0;
         vec_t *return_vector = (vec_t *) malloc(sizeof(vec_t));
         char buf[32];
         // XXX: could have flag variable: can do this if reading for query.
-        vector_val[vector_len++] = 0; // XXX: trying to get it to work with the BitmapEngine this way
-        while (vector_len < 128 && fgets(buf, 32, fp) != NULL)
+        // XXX: trying to get it to work with the BitmapEngine this way
+        vector_val[vector_len++] = 0;
+        while (vector_len < MAX_VECTOR_LEN && fgets(buf, 32, fp) != NULL)
             vector_val[vector_len++] = (u_int64_t) strtoul(buf, NULL, 16);
         fclose(fp);
         memcpy(return_vector->vector, vector_val,
             sizeof(u_int64_t) * vector_len);
         return_vector->vector_length = vector_len;
         return return_vector;
+    }
+}
+
+void print_vector(u_int64_t *vec, u_int vec_len)
+{
+    int i;
+    for (i = 0; i < vec_len; i++) {
+        printf("%llx\n", vec[i]);
     }
 }

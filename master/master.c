@@ -19,9 +19,9 @@
 #include "../consistent-hash/ring/src/tree_map.h"
 #include "../types/types.h"
 
-#define TEST_NUM_VECTORS 5000
-#define TEST_NUM_QUERIES 1000
-#define TEST_MAX_LINE_LEN 100
+#define TEST_NUM_VECTORS 100
+#define TEST_NUM_QUERIES 13
+#define TEST_MAX_LINE_LEN 5120
 
 #define MS_DEBUG false
 
@@ -140,7 +140,9 @@ int main(int argc, char *argv[])
     int vec_id;
     char buf[64];
     for (vec_id = 0; vec_id < TEST_NUM_VECTORS; vec_id++) {
-        snprintf(buf, 64, "../tst_data/vec/v_%d.dat", vec_id);
+        if (vec_id % 1000 == 0) printf("PUT(v%d)\n", vec_id);
+
+        snprintf(buf, 64, "../tst_data/tpc/vec/v_%d.dat", vec_id);
         vec_t *vec = read_vector(buf);
 
         slave *commit_slaves[replication_factor];
@@ -157,20 +159,19 @@ int main(int argc, char *argv[])
         }
 
         int commit_res = commit_vector(vec_id, *vec, commit_slaves, replication_factor);
+        if (commit_res) heartbeat();
 
-        if (commit_res) {
-            heartbeat();
-        }
+        free(slave_ids);
     }
 
     /* READ queries */
-    FILE *fp = fopen("../tst_data/vec/qs.dat", "r");
+    FILE *fp = fopen("../tst_data/tpc/qs/qs.dat", "r");
     char *query_str;
     char *ops;
 
     int query;
     for (query = 0; query < TEST_NUM_QUERIES; query++) {
-        printf("Performing query %d\n", query);
+        printf("QUERY(%d)\n", query);
 
         query_str = malloc(sizeof(char) * TEST_MAX_LINE_LEN);
 
@@ -512,7 +513,7 @@ slave *new_slave(char *address)
 {
     slave *s = (slave *) malloc(sizeof(slave));
     s->id = get_new_slave_id();
-    s->address = malloc(sizeof(address));
+    s->address = malloc(strlen(address) + 1);
     strcpy(s->address, address);
     s->is_alive = true;
     s->primary_vector_head = NULL;

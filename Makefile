@@ -40,6 +40,20 @@ $(BIN)/tree_map.o:
 		master/master.c \
 		-lssl -lpthread -lcrypto -lm -lpython2.7 # TODO: make `MASTER_FLAGS` target
 
+.master_cent: .bitmap-vector
+	@echo "Compiling Centralized Master"
+	@$(CC) -c -o $(BIN)/master_rq_cent.o \
+		master/master_rq_cent.c
+	@$(CC) -o $(BIN)/master_cent \
+		$(BIN)/master_rq_cent.o \
+		$(BIN)/WAHQuery.o \
+	$(BIN)/SegUtil.o \
+		$(BIN)/read_vec.o \
+	master/master_cent.c -lpthread
+
+master_cent: .master_cent
+	@cd bin && ./master_cent
+
 .engine:
 	@echo "Compiling Bitmap Engine Query function"
 	@$(CC) -c -o $(BIN)/WAHQuery.o \

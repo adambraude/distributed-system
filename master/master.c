@@ -20,7 +20,7 @@
 #include "../types/types.h"
 
 #define TEST_NUM_VECTORS 100
-#define TEST_NUM_QUERIES 13
+#define TEST_NUM_QUERIES 45
 #define TEST_MAX_LINE_LEN 5120
 
 #define MS_DEBUG false
@@ -165,7 +165,7 @@ int main(int argc, char *argv[])
     }
 
     /* READ queries */
-    FILE *fp = fopen("../tst_data/tpc/qs/qs.dat", "r");
+    FILE *fp = fopen("../tst_data/tpc/qs/qs2.dat", "r");
     char *query_str;
     char *ops;
 
@@ -197,10 +197,10 @@ int main(int argc, char *argv[])
         /* grab first element */
         token = strtok(token, delim);
         ops = (char *) malloc(sizeof(char) * num_ranges);
-
         /* Allocate 2D array of range pointers */
         unsigned int range_count = num_ranges;
-        vec_id_t ranges[range_count][2];
+
+        vec_id_t ranges[128][2];
 
         /* parse out ranges and operators */
         num_ranges = 0;
@@ -222,7 +222,6 @@ int main(int argc, char *argv[])
         }
         range_query_contents *contents = (range_query_contents *)
             malloc(sizeof(range_query_contents));
-
         /* fill in the data */
         // TODO move to above `while` loop!
         for (i = 0; i < num_ranges; i++) {
@@ -232,7 +231,6 @@ int main(int argc, char *argv[])
         }
 
         contents->num_ranges = num_ranges;
-
 
         switch (query_plan_t) {
             /* TODO: fill in cases */
@@ -318,6 +316,7 @@ int starfish(range_query_contents contents)
             machine_vec_ptrs[mvp_addr] = (u_int *) malloc(sizeof(u_int) * 2);
             machine_vec_ptrs[mvp_addr][0] = tuple[0];
             machine_vec_ptrs[mvp_addr][1] = j;
+            free(tuple);
         }
 
         qsort(machine_vec_ptrs, range_len,

@@ -62,7 +62,6 @@ query_result *rq_range_root(rq_range_root_args *query)
 {
     int num_threads = query->num_ranges;
     unsigned int *range_array = query->range_array.range_array_val;
-    pthread_t tids[num_threads];
 
     results = (query_result **) malloc(sizeof(query_result *) * num_threads);
     int i, array_index = 0;
@@ -94,8 +93,8 @@ query_result *rq_range_root(rq_range_root_args *query)
 
         thread_args->query_result_index = i;
         thread_args->args = head_args;
-        pthread_create(&tids[i], NULL, init_coordinator_thread,
-            (void *) thread_args);
+
+        init_coordinator_thread((void*) thread_args);
     }
 
     query_result *res = (query_result *) malloc(sizeof(query_result));
@@ -106,7 +105,6 @@ query_result *rq_range_root(rq_range_root_args *query)
      */
     u_int result_vector_len = 0, largest_vector_len = 0;
     for (i = 0; i < num_threads; i++) {
-        pthread_join(tids[i], NULL);
         /* assuming a single point of failure, report on the failed slave */
         if (results[i]->exit_code != EXIT_SUCCESS) {
             return results[i];
@@ -128,10 +126,6 @@ query_result *rq_range_root(rq_range_root_args *query)
         malloc(sizeof(u_int64_t) * largest_vector_len);
     memset(result_vector, 0, largest_vector_len * sizeof(u_int64_t));
     /* AND the first 2 vectors together */
-    puts("vector 0");
-    print_vector(results[0]->vector.vector_val, results[0]->vector.vector_len);
-    puts("vector 1");
-    print_vector(results[1]->vector.vector_val, results[1]->vector.vector_len);
     result_vector_len = AND_WAH(result_vector,
         results[0]->vector.vector_val, results[0]->vector.vector_len,
         results[1]->vector.vector_val, results[1]->vector.vector_len) + 1;
@@ -175,11 +169,9 @@ char *machine_failure_msg(char *machine_name)
 void *init_coordinator_thread(void *coord_args) {
     coord_thread_args *args = (coord_thread_args *) coord_args;
 
-    puts("print addr");
-    printf("%s\n", args->args->machine_addr);
-    puts("printed addr");
     CLIENT *clnt = clnt_create(args->args->machine_addr,
         REMOTE_QUERY_PIPE, REMOTE_QUERY_PIPE_V1, "tcp");
+
     if (clnt == NULL) {
         clnt_pcreateerror(args->args->machine_addr);
     }

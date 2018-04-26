@@ -5,7 +5,7 @@ TST := tst
 
 CFLAGS := -w
 CC := gcc $(CFLAGS)
-RPCGEN := rpcgen -C -N
+RPCGEN := rpcgen -N -C
 
 all: clean compile
 

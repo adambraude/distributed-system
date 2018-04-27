@@ -26,6 +26,11 @@ typedef struct coord_thread_args {
 void *init_coordinator_thread(void *coord_args);
 query_result **results;
 
+void kill_slave(int slave_id) {
+    CLIENT *clnt = clnt_create(SLAVE_ADDR[slave_id], SLAVE_SUICIDE, SLAVE_SUICIDE_V1, "tcp");
+    copy_vector_args c;
+    kill_slave_rpc_1(c, clnt);
+}
 
 /**
  * Executes the given (formatted) range query, returning 0 on success,

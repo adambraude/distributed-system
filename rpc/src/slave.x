@@ -114,3 +114,9 @@ program COPY_OVER_VECTOR {
         int SEND_VEC(copy_vector_args) = 1;
     } = 1;
 } = 0x70;
+
+program SLAVE_SUICIDE {
+    version SLAVE_SUICIDE_V1 {
+        int KILL_SLAVE_RPC(copy_vector_args) = 1;
+    } = 1;
+} = 0x99;

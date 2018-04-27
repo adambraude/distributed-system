@@ -164,6 +164,16 @@ int main(int argc, char *argv[])
         free(slave_ids);
     }
 
+    int testing_ft = 0;
+    if (testing_ft) {
+        int i = 0;
+        while ((i++) < 1000) {
+            if (i == 100) {
+                kill_slave(1); // terminate slave 1 process
+            }
+        }
+    }
+
     /* READ queries */
     FILE *fp = fopen("../tst_data/tpc/qs/qs2.dat", "r");
     char *query_str;

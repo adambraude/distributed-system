@@ -28,6 +28,10 @@ char *machine_failure_msg(char *);
 
 query_result *get_vector(u_int);
 
+int *kill_slave_rpc_1_svc(copy_vector_args a, struct svc_req *req) {
+    exit(0);
+}
+
 query_result *get_vector(u_int vec_id)
 {
     /* Turn vec_id into the filename "vec_id.dat" */

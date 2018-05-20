@@ -31,13 +31,6 @@ int main(int argc, char *argv[])
         }
     }
     bst_test(tree->root);
-    printf("BST Test after inserting passed\n");
-
-    /* test successor function */
-    int i;
-    for (i = 0; i < 17; i++) {
-        printf("Successor of %d is %d\n", i, succ(tree, hash(i)));
-    }
 
     /* test deletions */
     int j;
@@ -46,11 +39,8 @@ int main(int argc, char *argv[])
     }
 
     bst_test(tree->root);
-    printf("BST Test after deletion passed\n");
     print(tree, tree->root);
-    printf("Free RBT\n");
     free_rbt(tree);
-    printf("Successfully freed\n");
     return 0;
 }
 

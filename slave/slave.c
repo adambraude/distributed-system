@@ -54,7 +54,6 @@ query_result *get_vector(u_int vec_id)
 
 query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
 {
-    printf("%s: In Pipe 1 svc\n", SLAVE_ADDR[slave_id]);
     query_result *this_result;
     query_result *next_result = NULL;
 
@@ -66,7 +65,6 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
         return this_result;
     /* Recursive Query */
     else {
-        printf("Going to visit %s\n", query.next->machine_addr);
         while (!strcmp(query.next->machine_addr, SLAVE_ADDR[slave_id])) {
             next_result = get_vector(query.next->vec_id);
             u_int result_len = 0;
@@ -183,7 +181,6 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
     res->exit_code = exit_code;
     res->error_message = "";
     free(this_result);
-    puts("Returning Result");
     return res;
 }
 
@@ -193,7 +190,6 @@ static int result;
 
 int *commit_msg_1_svc(int message, struct svc_req *req)
 {
-	printf("SLAVE: VOTING\n");
     int ready = 1; // test value
     if (ready) {
         result = VOTE_COMMIT;
@@ -212,7 +208,6 @@ int *commit_msg_1_svc(int message, struct svc_req *req)
 
 int *commit_vec_1_svc(struct commit_vec_args args, struct svc_req *req)
 {
-	printf("SLAVE: Putting vector %u\n", args.vec_id);
     FILE *fp;
     char filename_buf[128];
     snprintf(filename_buf, 128, "v_%d.dat", args.vec_id); // TODO: function to get vector filename
@@ -239,7 +234,6 @@ int *init_slave_1_svc(init_slave_args args, struct svc_req *req)
 {
     slave_id = args.slave_id; /* assign this slave its ID */
     result = EXIT_SUCCESS;
-    printf("Registered slave %d\n", slave_id);
     return &result;
 }
 

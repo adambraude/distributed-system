@@ -19,12 +19,9 @@
 #include "../types/types.h"
 
 #define TEST_NUM_VECTORS 5000
-#define TEST_NUM_QUERIES 10000
 #define TEST_MAX_LINE_LEN 5120
 
 #define MS_DEBUG false
-
-
 
 /* Ring CH variables */
 rbt_ptr chash_table;
@@ -41,22 +38,15 @@ u_int max_vector_len;
  */
 int main(int argc, char *argv[])
 {
-
-    /* For measuring query time. */
-    clock_t start_time = clock();
-
-    /* PUT vectors */
-    // No need to put since we already have the vectors!
-
     /* READ queries */
     FILE *fp = fopen("../tst_data/tpc/qs/qs2.dat", "r");
     char *query_str;
     char *ops;
 
-    int query,i,j;
-    for (query = 0; query < TEST_NUM_QUERIES; query++) {
-        printf("QUERY(%d)\n", query);
+    int num_queries = atoi(argv[1]);
 
+    int query,i,j;
+    for (query = 0; query < num_queries; query++) {
         char query_str[TEST_MAX_LINE_LEN];
 
         fgets(query_str, TEST_MAX_LINE_LEN - 1, fp);
@@ -93,9 +83,6 @@ int main(int argc, char *argv[])
             r1 = atoi(token);
             token = strtok(NULL, delim);
             r2 = atoi(token);
-            //vec_id_t *bounds = (vec_id_t *) malloc(sizeof(vec_id_t) * 2);
-            // bounds[0] = r1;
-            // bounds[1] = r2;
             ranges[num_ranges][0] = r1;
             ranges[num_ranges][1] = r2;
             token = strtok(NULL, delim);
@@ -121,13 +108,6 @@ int main(int argc, char *argv[])
         free(ops);
     }
     fclose(fp);
-
-    clock_t end_time = clock();
-
-    long double elapsed_time =
-        (long double) (end_time - start_time) / CLOCKS_PER_SEC;
-    printf("Time elapsed: %Lf\n", elapsed_time);
-
 }
 
 int starfish(range_query_contents contents)
@@ -142,8 +122,6 @@ int starfish(range_query_contents contents)
         int row_len = (range[1] - range[0] + 1) * 2 + 1;
         num_ints_needed += row_len;
     }
-
-
     /* NB: freed in master_rq */
     u_int *range_array = (u_int *) malloc(sizeof(u_int) * num_ints_needed);
     int array_index = 0;
@@ -151,8 +129,6 @@ int starfish(range_query_contents contents)
     for (i = 0; i < contents.num_ranges; i++) {
         u_int *range = contents.ranges[i];
         vec_id_t j;
-        // FIXME: clarify this code by naming range1, range0
-        // start of range is number of vectors
         u_int range_len = range[1] - range[0] + 1;
         range_array[array_index++] = range_len;
         u_int machine_vec_ptrs[range_len][2];
@@ -161,8 +137,6 @@ int starfish(range_query_contents contents)
             machine_vec_ptrs[mvp_addr][0] = 0;
             machine_vec_ptrs[mvp_addr][1] = j;
         }
-
-
         /* save machine/vec IDs into the array */
         int tuple_index;
         for (j = range[0]; j <= range[1]; j++) {
@@ -170,11 +144,6 @@ int starfish(range_query_contents contents)
             range_array[array_index++] = machine_vec_ptrs[tuple_index][0];
             range_array[array_index++] = machine_vec_ptrs[tuple_index][1];
         }
-
-        // for (j = range[0]; j <= range[1]; j++) {
-        //     free(machine_vec_ptrs[j - range[0]]);
-        // }
-        // free(machine_vec_ptrs);
     }
     return cent_init_range_query(range_array, contents.num_ranges,
         contents.ops, array_index);

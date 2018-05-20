@@ -44,15 +44,6 @@ init_range_query(unsigned int *range_array, int num_ranges,
 
     query_result *res = rq_range_root(root);
 
-    int i;
-    if (res->exit_code == EXIT_SUCCESS) {
-        for (i = 1; i < res->vector.vector_len; i++) {
-            printf("%lx\n",res->vector.vector_val[i]);
-        }
-    }
-    else {
-        printf("Query failed, reason: %s\n", res->error_message);
-    }
     free(root);
     free(range_array);
     return EXIT_SUCCESS;
@@ -73,7 +64,6 @@ query_result *rq_range_root(rq_range_root_args *query)
         int j;
         for (j = 0; j < num_nodes; j++) {
             pipe_args->machine_addr = SLAVE_ADDR[range_array[array_index++]];
-            //printf("Finding vector %d at %d : %s\n", range_array[array_index], range_array[array_index - 1], pipe_args->machine_addr);
             pipe_args->vec_id = range_array[array_index++];
             pipe_args->op = '|';
             if (j < num_nodes - 1) {

@@ -39,11 +39,6 @@ int main (int argc, char *argv[])
         step      = strtol(argv[4], NULL, 10);
     }
     else {
-        printf((
-            "Invalid arguments.\n"
-            "Input should be of the form:\n"
-            "\t./main [-s] [min_power max_power step]\n"));
-
         return EXIT_FAILURE;
     }
 
@@ -69,45 +64,6 @@ void run_distrobution_tests
             /* Test hashing sequential data. */
             distribution_stats sequen =
                 test_distribution_sequen_keys(num_keys, num_buckets);
-
-            if (printing) {
-                printf(
-                    "==========================================\n"
-                    "Dividing %6i keys between %6i buckets.\n\n",
-                    num_keys, num_buckets);
-
-                printf(
-                    "         Random Keys         \n"
-                    "=============================\n");
-
-                printf(
-                    "          Variance: %9.5f\n"
-                    "Standard Deviation: %9.5f\n"
-                    "    Standard Error: %9.5f\n",
-                    random.variance,
-                    random.standard_deviation,
-                    random.standard_error);
-
-                printf(
-                    "       Sequential Keys       \n"
-                    "=============================\n");
-
-                printf(
-                    "          Variance: %9.5f\n"
-                    "Standard Deviation: %9.5f\n"
-                    "    Standard Error: %9.5f\n",
-                    sequen.variance,
-                    sequen.standard_deviation,
-                    sequen.standard_error);
-
-                printf("\n");
-
-                if (i == max_power && j == max_power)
-                    printf(
-                        "========================="
-                        "========================="
-                        "\n");
-            }
         }
     }
 }

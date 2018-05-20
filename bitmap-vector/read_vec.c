@@ -11,9 +11,7 @@
 vec_t *read_vector(char *path)
 {
     FILE *fp = fopen(path, "r");
-    puts(path);
     if (fp == NULL) {
-        puts("vector not found!");
         return NULL;
     }
     else {
@@ -38,10 +36,4 @@ vec_t *read_vector(char *path)
     }
 }
 
-void print_vector(u_int64_t *vec, u_int vec_len)
-{
-    int i;
-    for (i = 0; i < vec_len; i++) {
-        printf("%llx\n", vec[i]);
-    }
-}
+void print_vector(u_int64_t *vec, u_int vec_len){}

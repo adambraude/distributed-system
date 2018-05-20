@@ -32,7 +32,6 @@ int commit_vector(vec_id_t vec_id, vec_t vector, slave *slaves[], int num_slaves
     int i;
     void *status = 0;
     for (i = 0; i < num_slaves; i++) {
-        //printf("pthread create %s\n", slaves[i]);
         pthread_create(&tids[i], NULL, get_commit_resp,
             (void *) slaves[i]->address);
     }
@@ -40,7 +39,6 @@ int commit_vector(vec_id_t vec_id, vec_t vector, slave *slaves[], int num_slaves
     for (i = 0; i < num_slaves; i++) {
         pthread_join(tids[i], &status);
         if (status == (void *) 1) {
-            printf("Failed to connect to all slaves.\n");
             return 1;
         }
     }
@@ -69,11 +67,9 @@ int commit_vector(vec_id_t vec_id, vec_t vector, slave *slaves[], int num_slaves
 void *get_commit_resp(void *slv_addr_arg)
 {
     char *slv_addr = (char *) slv_addr_arg;
-    // printf("Connecting to %s, creating clnt\n", slv_addr);
     CLIENT *clnt = clnt_create(slv_addr, TWO_PHASE_COMMIT,
         TWO_PHASE_COMMIT_V1, "tcp");
     if (clnt == NULL) {
-        printf("Error: could not connect to slave %s.\n", slv_addr);
         pthread_exit((void*) 1);
     }
     /* give the request a time-to-live */
@@ -82,9 +78,7 @@ void *get_commit_resp(void *slv_addr_arg)
     tv.tv_usec = 0;
     clnt_control(clnt, CLSET_TIMEOUT, &tv);
     int *result = commit_msg_1(0, clnt);
-    if (result == NULL || *result == VOTE_ABORT) {
-        printf("Couldn't commit at slave %s.\n", slv_addr);
-    }
+    if (result == NULL || *result == VOTE_ABORT);
     else {
         pthread_mutex_lock(&lock);
         successes++;
@@ -101,7 +95,6 @@ void *push_vector(void *thread_arg)
         TWO_PHASE_COMMIT_V1, "tcp");
 
     if (cl == NULL) {
-        printf("Error: could not connect to slave %s.\n", args->slave_addr);
         pthread_exit((void*) 1);
     }
 
@@ -116,10 +109,8 @@ void *push_vector(void *thread_arg)
     clnt_destroy(cl);
 
     if (result == NULL) {
-        printf("Commit failed.\n");
         return (void*) 1;
     }
-    // printf("Commit succeeded.\n");
     return (void*) 0;
 }
 
@@ -131,7 +122,6 @@ int setup_slave(slave *slv)
     CLIENT *cl = clnt_create(slv->address, SETUP_SLAVE, SETUP_SLAVE_V1,
         "tcp");
     if (cl == NULL) {
-        printf("Error: couldn't connect\n");
         return 1;
     }
     init_slave_args *args = (init_slave_args *)
@@ -146,7 +136,6 @@ int setup_slave(slave *slv)
     free(args);
     clnt_destroy(cl);
     if (*res) {
-        printf("RPC: Failed to initialize slave %s\n", slv->address);
         return 1;
     }
     return 0;

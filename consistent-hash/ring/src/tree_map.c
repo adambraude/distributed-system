@@ -129,9 +129,6 @@ void delete_entry(rbt_ptr t, hash_value hv)
 void print_tree(rbt_ptr t, node_ptr c)
 {
     if (c == t->nil) return;
-    printf("Hash value (curr, left, right): %d %d %d\n", c->hv, c->left->hv, c->right->hv);
-    printf("Machine IDS (curr, left, right): %d %d %d\n", c->cid, c->left->cid, c->right->cid);
-
     print_tree(t, c->right);
     print_tree(t, c->left);
 }
@@ -457,7 +454,6 @@ void recur_free_rbt(rbt_ptr t, node_ptr n)
 {
     if (n->left != t->nil) recur_free_rbt(t, n->left);
     if (n->right != t->nil) recur_free_rbt(t, n->right);
-    printf("Freeing %d\n", n->hv);
     free(n);
 }
 

@@ -52,10 +52,8 @@ void test_put_vec_len_2(int queue_id, int vec_id, unsigned long long vec, unsign
 int main(int argc, char *argv[])
 {
     if (argc < 2) {
-        printf("Usage: dbms test-no\n");
         return 1;
     }
-    printf("Starting DBMS...\n");
 
     /* SPAWN MASTER */
 
@@ -66,7 +64,6 @@ int main(int argc, char *argv[])
             perror("fork");
             exit(EXIT_FAILURE);
         case 0:
-            printf("Starting master\n");
             char *argv[3] = {MASTER_EXECUTABLE, REPLICATION_FACTOR, NULL};
             int master_exit_status = execv(MASTER_EXECUTABLE, argv);
             exit(master_exit_status);
@@ -78,11 +75,6 @@ int main(int argc, char *argv[])
 
     /* Create message queue. */
     int msq_id = msgget(MSQ_KEY, MSQ_PERMISSIONS | IPC_CREAT);
-
-    /* Go to sleep for a bit, to wait for everything to start */
-    //puts("DBMS sleeping");
-    //sleep(10); // XXX empirically determined?
-    //puts("DBMS: woke up");
 
     /* TESTS */
     int test_no = atoi(argv[1]);
@@ -133,7 +125,6 @@ int main(int argc, char *argv[])
         range_query(msq_id, range);
     }
     else {
-        printf("Invalid test number\n");
         return_val = 1;
     }
 
@@ -142,7 +133,6 @@ int main(int argc, char *argv[])
     int master_result = 0;
     /* Reap master. */
     wait(&master_result);
-    printf("Master returned: %i\n", master_result);
 
     /* Destroy message queue. */
     msgctl(msq_id, IPC_RMID, NULL);
@@ -227,7 +217,6 @@ int range_query(int queue_id, char *query_str)
 
    contents->num_ranges = num_ranges;
    range->range_query = *contents;
-   //printf("Sending a message to queue\n");
    msgsnd(queue_id, range, sizeof(msgbuf), 0);
    free(contents);
    free(ops);

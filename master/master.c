@@ -19,8 +19,7 @@
 #include "../consistent-hash/ring/src/tree_map.h"
 #include "../types/types.h"
 
-#define TEST_NUM_VECTORS 100
-#define TEST_NUM_QUERIES 45
+#define TEST_NUM_VECTORS 5000
 #define TEST_MAX_LINE_LEN 5120
 
 #define MS_DEBUG false
@@ -75,14 +74,9 @@ int main(int argc, char *argv[])
         /* TODO: when we use CLI args, change this array */
         slave *s = new_slave(SLAVE_ADDR[i]);
         /* could not connect */
-        if (setup_slave(s)) {
-            printf("MASTER: Could not register machine %s\n", SLAVE_ADDR[i]);
-        }
+        if (setup_slave(s));
         else {
             slavelist->slave_node = s;
-            printf("Added slave %s\n", SLAVE_ADDR[i]);
-            /* if there is another slave to add to the linked-list,
-             * allocate a node for it */
             if (i < num_slaves - 1) {
                 slavelist->next = (slave_ll *) malloc(sizeof(slave_ll));
                 slavelist = slavelist->next;
@@ -133,46 +127,41 @@ int main(int argc, char *argv[])
         }
     }
 
-    /* For measuring query time. */
-    clock_t start_time = clock();
-
     /* PUT vectors */
-    int vec_id;
-    char buf[64];
-    for (vec_id = 0; vec_id < TEST_NUM_VECTORS; vec_id++) {
-        if (vec_id % 1000 == 0) printf("PUT(v%d)\n", vec_id);
+    // int vec_id;
+    // char buf[64];
+    // for (vec_id = 0; vec_id < TEST_NUM_VECTORS; vec_id++) {
+    //     snprintf(buf, 64, "../tst_data/tpc/vec/v_%d.dat", vec_id);
+    //     vec_t *vec = read_vector(buf);
 
-        snprintf(buf, 64, "../tst_data/tpc/vec/v_%d.dat", vec_id);
-        vec_t *vec = read_vector(buf);
+    //     slave *commit_slaves[replication_factor];
+    //     u_int *slave_ids = get_machines_for_vector(vec_id, true);
+    //     slave_ll *head = slavelist;
 
-        slave *commit_slaves[replication_factor];
-        u_int *slave_ids = get_machines_for_vector(vec_id, true);
-        slave_ll *head = slavelist;
+    //     int cs_index = 0;
+    //     while (head != NULL) {
+    //         if (head->slave_node->id == slave_ids[0] ||
+    //             head->slave_node->id == slave_ids[1])
+    //             commit_slaves[cs_index++] = head->slave_node;
+    //         if (cs_index == replication_factor) break;
+    //         head = head->next;
+    //     }
 
-        int cs_index = 0;
-        while (head != NULL) {
-            if (head->slave_node->id == slave_ids[0] ||
-                head->slave_node->id == slave_ids[1])
-                commit_slaves[cs_index++] = head->slave_node;
-            if (cs_index == replication_factor) break;
-            head = head->next;
-        }
+    //     int commit_res = commit_vector(vec_id, *vec, commit_slaves, replication_factor);
+    //     if (commit_res) heartbeat();
 
-        int commit_res = commit_vector(vec_id, *vec, commit_slaves, replication_factor);
-        if (commit_res) heartbeat();
-
-        free(slave_ids);
-    }
+    //     free(slave_ids);
+    // }
 
     /* READ queries */
     FILE *fp = fopen("../tst_data/tpc/qs/qs2.dat", "r");
     char *query_str;
     char *ops;
 
-    int query;
-    for (query = 0; query < TEST_NUM_QUERIES; query++) {
-        printf("QUERY(%d)\n", query);
+    int num_queries = atoi(argv[1]);
 
+    int query;
+    for (query = 0; query < num_queries; query++) {
         char query_str[TEST_MAX_LINE_LEN];
 
         fgets(query_str, TEST_MAX_LINE_LEN - 1, fp);
@@ -256,12 +245,6 @@ int main(int argc, char *argv[])
         free(ops);
     }
     fclose(fp);
-
-    clock_t end_time = clock();
-
-    long double elapsed_time =
-        (long double) (end_time - start_time) / CLOCKS_PER_SEC;
-    printf("Time elapsed: %Lf\n", elapsed_time);
 
     /* deallocation */
     while (slavelist != NULL) {
@@ -353,16 +336,11 @@ int heartbeat()
         int id = head->slave_node->id;
         head = head->next;
         if (!is_alive(addr)) {
-            printf("Machine %s failed\n", addr);
             remove_slave(id);
             if (num_slaves == 0) {
-                puts("MASTER: there are no more slaves");
                 return 1;
             }
             reallocate();
-        }
-        else {
-            if (MS_DEBUG) printf("%s is alive!\n", addr);
         }
     }
     return 0;
@@ -388,9 +366,6 @@ int remove_slave(u_int slave_id)
 
 void reallocate()
 {
-    // take the dead slave, reallocate its vectors to other machines
-    // assumes that none of the vectors die in the process
-    printf("Something died\n");
     switch (partition_t) {
         case RING_CH: {
             u_int pred_id = ring_get_pred_id(chash_table, dead_slave->id);

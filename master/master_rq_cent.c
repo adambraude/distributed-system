@@ -37,32 +37,17 @@ int
 cent_init_range_query(u_int *range_array, int num_ranges,
     char *ops, int array_len)
 {
-    puts("init range query");
     rq_range_root_args *root = (rq_range_root_args *) malloc(sizeof(rq_range_root_args));
     root->range_array.range_array_val = range_array;
     root->range_array.range_array_len = array_len;
     root->num_ranges = num_ranges;
     root->ops.ops_val = ops;
     root->ops.ops_len = num_ranges - 1;
-    int i;
-    for (i = 0; i < array_len; i++) {
-        printf("%d\n", range_array[i]);
-    }
-
     query_result *res = rq_range_root(root);
     if (DEBUG) {
         free(root);
         free(range_array);
         return 0; // TODO: fix bug
-    }
-    printf("Res len = %d\n", res->vector.vector_len);
-    if (res->exit_code == EXIT_SUCCESS) {
-        for (i = 1; i < res->vector.vector_len; i++) {
-            printf("%llx\n",res->vector.vector_val[i]);
-        }
-    }
-    else {
-        printf("Query failed, reason: %s\n", res->error_message);
     }
     free(res);
     free(root);
@@ -79,7 +64,6 @@ query_result *get_vector(u_int vec_id)
 
     query_result *res = (query_result *) malloc(sizeof(query_result));
     if (vector == NULL) {
-        puts("Couldn't find vector!");
         res->vector.vector_val = NULL;
         res->vector.vector_len = 0;
         res->exit_code = EXIT_FAILURE;
@@ -147,10 +131,6 @@ query_result *rq_pipe_1_cent(rq_pipe_args query, struct svc_req *req)
                 res->exit_code = EXIT_SUCCESS;
                 free(this_result);
                 res->error_message = "";
-                int i;
-                for (i = 0; i < res->vector.vector_len; i++) {
-                    printf("%llx\n", res->vector.vector_val[i]);
-                }
                 return res;
             }
             /* there are still more vectors to visit! */
@@ -184,7 +164,6 @@ query_result *rq_range_root(rq_range_root_args *query)
         int j;
         for (j = 0; j < num_nodes; j++) {
             array_index++;
-            //printf("Finding vector %d at %d : %s\n", range_array[array_index], range_array[array_index - 1], pipe_args->machine_addr);
             pipe_args->vec_id = range_array[array_index++];
             pipe_args->op = '|';
             if (j < num_nodes - 1) {
@@ -235,10 +214,7 @@ query_result *rq_range_root(rq_range_root_args *query)
     res->exit_code = EXIT_SUCCESS;
     res->error_message = "";
     results[0]->vector;
-    puts("returning");
     if (num_threads == 1) { /* there are no vectors to AND together */
-        //print_vector(results[0]->vector.vector_len, results[0]->vector.vector_val);
-        puts("returning");
         return results[0];
     }
     u_int64_t *result_vector = (u_int64_t *)
@@ -249,7 +225,6 @@ query_result *rq_range_root(rq_range_root_args *query)
     result_vector_len = AND_WAH(result_vector,
         results[0]->vector.vector_val, results[0]->vector.vector_len,
         results[1]->vector.vector_val, results[1]->vector.vector_len) + 1;
-    puts("AND-ed!");
 
     /* AND the subsequent vectors together */
     for (i = 2; i < num_threads; i++) {
@@ -284,17 +259,5 @@ query_result *rq_range_root(rq_range_root_args *query)
 void *init_coordinator_thread(void *coord_args) {
     coord_thread_args *args = (coord_thread_args *) coord_args;
     results[args->query_result_index] = rq_pipe_1_cent(*(args->args), NULL);
-    // results[args->query_result_index] = malloc(sizeof(query_result *));
-    // u_int64_t arr[res->vector.vector_len];
-    // memset(arr, 0, sizeof(u_int64_t) * res->vector.vector_len);
-    // results[args->query_result_index]->vector.vector_val = (u_int64_t*) malloc(sizeof(u_int64_t) * args->query_result_index);
-    // memcpy(results[args->query_result_index]->vector.vector_val, res->vector.vector_val, sizeof(u_int64_t) * res->vector.vector_len);
-    // results[args->query_result_index]->vector.vector_len = res->vector.vector_len;
-    //
-    //
-    // puts("finished result");
-    // print_vector(results[args->query_result_index]->vector.vector_val, results[args->query_result_index]->vector.vector_len);
-    // puts("done printing result");
-    // results[args->query_result_index]->exit_code = EXIT_SUCCESS;
     return (void *) EXIT_SUCCESS;
 }

@@ -59,16 +59,21 @@ int main(int argc, char *argv[])
 
     bool master_exists = false;
     pid_t master_pid = -1;
-    if (!master_exists) switch (master_pid = fork()) {
-        case -1:
-            perror("fork");
-            exit(EXIT_FAILURE);
-        case 0:
-            char *argv[3] = {MASTER_EXECUTABLE, REPLICATION_FACTOR, NULL};
-            int master_exit_status = execv(MASTER_EXECUTABLE, argv);
-            exit(master_exit_status);
-        default:
-            master_exists = true;
+    if (!master_exists) {
+        const char *master_args[3];
+        switch (master_pid = fork()) {
+            case -1:
+                perror("fork");
+                exit(EXIT_FAILURE);
+            case 0:
+                master_args[0] = MASTER_EXECUTABLE;
+                master_args[1] = REPLICATION_FACTOR;
+                master_args[2] = NULL;
+                int master_exit_status = execv(MASTER_EXECUTABLE, master_args);
+                exit(master_exit_status);
+            default:
+                master_exists = true;
+       }
     }
 
     /* SETUP IPC */

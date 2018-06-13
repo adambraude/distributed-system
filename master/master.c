@@ -18,15 +18,18 @@
 #include "../bitmap-vector/read_vec.h"
 #include "../consistent-hash/ring/src/tree_map.h"
 #include "../types/types.h"
+#include "../util/ds_util.h"
 
 #define TEST_NUM_VECTORS 5000
 #define TEST_MAX_LINE_LEN 5120
 
 #define MS_DEBUG false
 
+char **slave_addresses;
+
 /* variables for use in all master functions */
 slave_ll *slavelist;
-u_int slave_id_counter = 1;
+u_int slave_id_counter = 0;
 u_int partition_t;
 u_int query_plan_t;
 int num_slaves;
@@ -64,7 +67,11 @@ int main(int argc, char *argv[])
     dead_slave = NULL;
 
     /* setup values, acquired from slavelist.h */
-    num_slaves = NUM_SLAVES;
+    int c;
+    num_slaves = fill_slave_arr(SLAVELIST_PATH, &slave_addresses);
+    if (num_slaves == -1) {
+        return 1;
+    }
     if (num_slaves == 1) replication_factor = 1;
 
     /* index in slave list will be the machine ID (0 is master) */
@@ -72,7 +79,7 @@ int main(int argc, char *argv[])
     slave_ll *head = slavelist;
     for (i = 1; i <= num_slaves; i++) {
         /* TODO: when we use CLI args, change this array */
-        slave *s = new_slave(SLAVE_ADDR[i]);
+        slave *s = new_slave(slave_addresses[i]);
         /* could not connect */
         if (setup_slave(s));
         else {
@@ -126,125 +133,71 @@ int main(int argc, char *argv[])
             break;
         }
     }
+    int msgs = 0, msq_id = msgget(MSQ_KEY, MSQ_PERMISSIONS | IPC_CREAT), rc;
+    struct msgbuf *request;
+    struct msqid_ds buf;
+    while (true) {
+        msgctl(msq_id, IPC_STAT, &buf);
+        heartbeat(); // TODO: this can be called elsewhere
+        if (buf.msg_qnum > 0) {
 
-    /* PUT vectors */
-    // int vec_id;
-    // char buf[64];
-    // for (vec_id = 0; vec_id < TEST_NUM_VECTORS; vec_id++) {
-    //     snprintf(buf, 64, "../tst_data/tpc/vec/v_%d.dat", vec_id);
-    //     vec_t *vec = read_vector(buf);
+            request = (struct msgbuf *) malloc(sizeof(msgbuf));
+            /* Grab from queue. */
+            // TODO fill in messages
+            rc = msgrcv(msq_id, request, sizeof(msgbuf), 0, 0);
 
-    //     slave *commit_slaves[replication_factor];
-    //     u_int *slave_ids = get_machines_for_vector(vec_id, true);
-    //     slave_ll *head = slavelist;
+            /* Error Checking */
+            if (rc < 0) {
+                perror( strerror(errno) );
+                printf("msgrcv failed, rc = %d\n", rc);
+                continue;
+            }
 
-    //     int cs_index = 0;
-    //     while (head != NULL) {
-    //         if (head->slave_node->id == slave_ids[0] ||
-    //             head->slave_node->id == slave_ids[1])
-    //             commit_slaves[cs_index++] = head->slave_node;
-    //         if (cs_index == replication_factor) break;
-    //         head = head->next;
-    //     }
-
-    //     int commit_res = commit_vector(vec_id, *vec, commit_slaves, replication_factor);
-    //     if (commit_res) heartbeat();
-
-    //     free(slave_ids);
-    // }
-
-    /* READ queries */
-    FILE *fp = fopen("../tst_data/tpc/qs/qs2.dat", "r");
-    char *query_str;
-    char *ops;
-
-    int num_queries = atoi(argv[1]);
-
-    int query;
-    for (query = 0; query < num_queries; query++) {
-        char query_str[TEST_MAX_LINE_LEN];
-
-        fgets(query_str, TEST_MAX_LINE_LEN - 1, fp);
-        /* Get rid of CR or LF at end of line */
-        for (j = strlen(query_str) - 1;
-            j >= 0 && (query_str[j] == '\n' || query_str[j] == '\r');
-            j--) query_str[j + 1] = '\0';
-
-        /**
-         * first pass: figure out how many ranges are in the query,
-         * to figure out how much memory to allocate.
-         */
-        unsigned int num_ranges = 0;
-        i = 0;
-        while (query_str[i] != '\0') {
-            if (query_str[i++] == ',') num_ranges++;
-        }
-
-        static char delim[] = "[,]";
-        char *token = strtok(query_str, "R:");
-
-        /* grab first element */
-        token = strtok(token, delim);
-        ops = (char *) malloc(sizeof(char) * num_ranges);
-        /* Allocate 2D array of range pointers */
-        unsigned int range_count = num_ranges;
-
-        vec_id_t ranges[128][2];
-
-        /* parse out ranges and operators */
-        num_ranges = 0;
-        int r1, r2;
-        while (token != NULL) {
-            r1 = atoi(token);
-            token = strtok(NULL, delim);
-            r2 = atoi(token);
-            //vec_id_t *bounds = (vec_id_t *) malloc(sizeof(vec_id_t) * 2);
-            // bounds[0] = r1;
-            // bounds[1] = r2;
-            ranges[num_ranges][0] = r1;
-            ranges[num_ranges][1] = r2;
-            token = strtok(NULL, delim);
-            if (token != NULL)
-                ops[num_ranges] = token[0];
-            token = strtok(NULL, delim);
-            num_ranges++;
-        }
-        range_query_contents *contents = (range_query_contents *)
-            malloc(sizeof(range_query_contents));
-        /* fill in the data */
-        // TODO move to above `while` loop!
-        for (i = 0; i < num_ranges; i++) {
-            contents->ranges[i][0] = ranges[i][0];
-            contents->ranges[i][1] = ranges[i][1];
-            if (i != num_ranges - 1) contents->ops[i] = ops[i];
-        }
-
-        contents->num_ranges = num_ranges;
-
-        switch (query_plan_t) {
-            /* TODO: fill in cases */
-            case STARFISH: {
-                while (starfish(*contents))
+            if (request->mtype == mtype_put) {
+                //slave **commit_slaves = malloc(sizeof(slave*) * replication_factor);
+                printf("Message %d received\n", ++msgs);
+                continue;
+                slave *commit_slaves[replication_factor];
+                unsigned int *slave_ids =
+                    get_machines_for_vector(request->vector.vec_id, false);
+                slave_ll *head = slavelist;
+                int cs_index = 0;
+                for (i = 0; i < num_slaves; i++) {
+                    if (head->slave_node->id == slave_ids[0] ||
+                        head->slave_node->id == slave_ids[1])
+                        commit_slaves[cs_index++] = head->slave_node;
+                    if (cs_index == replication_factor - 1) break;
+                    head = head->next;
+                }
+                int commit_res = commit_vector(request->vector.vec_id, request->vector.vec,
+                    commit_slaves, replication_factor);
+                if (commit_res)
                     heartbeat();
-                break;
             }
-            case UNISTAR:
-            case MULTISTAR:
-            case ITER_PRIM: {
-                /* init_btree_range_query(contents); */
-                /* TODO (for conference version) */
-                break;
-            }
-        }
+            else if (request->mtype == mtype_range_query) {
+                range_query_contents contents = request->range_query;
+                switch (query_plan_t) { // TODO: fill in cases
+                    case STARFISH: {
+                        while (starfish(contents))
+                            heartbeat();
+                    }
+                    case UNISTAR: {
 
-        /* free bounds */
-        // for (i = 0; i < range_count; i++)
-        //     free(ranges[i]);
-        // free(ranges);
-        free(contents);
-        free(ops);
+                    }
+                    case MULTISTAR: {
+
+                    }
+                    case ITER_PRIM: {
+
+                    }
+                }
+            }
+            else if (request->mtype == mtype_point_query) {
+                /* TODO: Call Jahrme function here */
+            }
+            free(request);
+        }
     }
-    fclose(fp);
 
     /* deallocation */
     while (slavelist != NULL) {

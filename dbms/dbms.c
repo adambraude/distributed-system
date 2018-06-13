@@ -129,6 +129,14 @@ int main(int argc, char *argv[])
         char range[] = "R:[0,1]";
         range_query(msq_id, range);
     }
+    else if (test_no == TPCORG_C_TEST) {
+        int num_vecs = 5320, i;
+        char buf[64];
+        for (i = 0; i < num_vecs; i++) {
+            snprintf(buf, 64, "../tst_data/tpc/vec/v_%d.dat", i);
+            put_vector(msq_id, i, read_vector(buf));
+        }
+    }
     else {
         return_val = 1;
     }

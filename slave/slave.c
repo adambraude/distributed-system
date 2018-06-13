@@ -3,6 +3,7 @@
  */
 
 #include "../rpc/gen/slave.h"
+#include "slave.h"
 #include "../rpc/vote.h"
 
 #include "../master/slavelist.h"
@@ -21,12 +22,7 @@
 #include <unistd.h>
 #include <string.h>
 
-char *machine_failure_msg(char *);
-unsigned int slave_id;
-
-char *machine_failure_msg(char *);
-
-query_result *get_vector(u_int);
+char **slave_addresses;
 
 query_result *get_vector(u_int vec_id)
 {
@@ -40,7 +36,7 @@ query_result *get_vector(u_int vec_id)
         res->vector.vector_len = 0;
         res->exit_code = EXIT_FAILURE;
         char buf[128];
-        snprintf(buf, 128, "Error: could not locate vector %d on machine %s", vec_id, SLAVE_ADDR[slave_id]); // TODO: also machine name?
+        snprintf(buf, 128, "Error: could not locate vector %d on machine %s", vec_id, slave_addresses[slave_id]); // TODO: also machine name?
         res->error_message = buf;
         return res;
     }
@@ -233,6 +229,11 @@ int *commit_vec_1_svc(struct commit_vec_args args, struct svc_req *req)
 int *init_slave_1_svc(init_slave_args args, struct svc_req *req)
 {
     slave_id = args.slave_id; /* assign this slave its ID */
+    if (fill_slave_arr(SLAVELIST_PATH, slave_addresses) == -1) {
+        exit(1);
+    }
+    printf("On machine %s, assigned slave number %d\n",
+        slave_addresses[slave_id], slave_id);
     result = EXIT_SUCCESS;
     return &result;
 }

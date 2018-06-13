@@ -4,6 +4,9 @@
 #include <stdbool.h>
 #include "../types/types.h"
 #include "../ipc/messages.h"
+#define SLAVELIST_PATH "../SLAVELIST"
+
+extern char **slave_addresses;
 
 /**
  * each slave will keep a linked list of vector IDs indicating which

@@ -14,6 +14,9 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <assert.h>
+
+char **slave_addresses;
+
 #define TIME_TO_VOTE 1 // XXX make this shared between master/slave (general timeout)
 
 query_result *rq_range_root(rq_range_root_args *query);
@@ -63,7 +66,7 @@ query_result *rq_range_root(rq_range_root_args *query)
         rq_pipe_args *head_args = pipe_args;
         int j;
         for (j = 0; j < num_nodes; j++) {
-            pipe_args->machine_addr = SLAVE_ADDR[range_array[array_index++]];
+            pipe_args->machine_addr = slave_addresses[range_array[array_index++]];
             pipe_args->vec_id = range_array[array_index++];
             pipe_args->op = '|';
             if (j < num_nodes - 1) {

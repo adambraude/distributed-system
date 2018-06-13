@@ -20,7 +20,7 @@ $(BIN)/tree_map.o:
 	@echo "Compiling RPC modules"
 	@cd rpc && make
 
-.master: .slave .rpc .bitmap-vector $(BIN)/tree_map.o
+.master: .slave .rpc .bitmap-vector $(BIN)/tree_map.o .ds-util
 	@echo "Compiling Master"
 	@$(CC) -c -o $(BIN)/master_rq.o \
 		master/master_rq.c
@@ -37,6 +37,7 @@ $(BIN)/tree_map.o:
 		$(BIN)/WAHQuery.o \
 		$(BIN)/SegUtil.o \
 		$(BIN)/read_vec.o \
+		$(BIN)/slavelist.o \
 		master/master.c \
 		-lssl -lpthread -lcrypto -lm -lpython2.7 # TODO: make `MASTER_FLAGS` target
 
@@ -61,7 +62,7 @@ master_cent: .master_cent
 	@$(CC) -c -o $(BIN)/SegUtil.o \
 		../bitmap-engine/BitmapEngine/src/seg-util/SegUtil.c
 
-.slave: .rpc .engine .bitmap-vector
+.slave: .rpc .engine .bitmap-vector .ds-util
 	@echo "Compiling Slave"
 	@$(CC) -o $(BIN)/slave \
 		$(RPC_BIN)/slave_clnt.o \
@@ -70,6 +71,7 @@ master_cent: .master_cent
 		$(BIN)/WAHQuery.o \
 		$(BIN)/SegUtil.o \
 		$(BIN)/read_vec.o \
+		$(BIN)/slavelist.o \
 		slave/slave.c \
 		-lm
 
@@ -83,6 +85,11 @@ master_cent: .master_cent
 	@echo "Compiling bitmap vector utilities"
 	@$(CC) -c -o $(BIN)/read_vec.o \
 		bitmap-vector/read_vec.c
+
+.ds-util:
+	@echo "Compiling distributed system utilities"
+	@$(CC) -c -o $(BIN)/slavelist.o \
+		util/slavelist.c
 
 .start_dbms:
 	@$(bin)/dbms

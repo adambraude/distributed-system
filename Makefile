@@ -39,7 +39,7 @@ $(BIN)/tree_map.o:
 		$(BIN)/read_vec.o \
 		$(BIN)/slavelist.o \
 		master/master.c \
-		-lssl -lpthread -lcrypto -lm -lpython2.7 # TODO: make `MASTER_FLAGS` target
+		-lssl -lpthread -lcrypto -lm #-lpython2.7 # TODO: make `MASTER_FLAGS` target
 
 .master_cent: .bitmap-vector
 	@echo "Compiling Centralized Master"

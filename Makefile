@@ -109,4 +109,4 @@ vd_test: all
 
 # TPC Benchmarking Data Test
 tpc_test: all
-	@cd $(BIN) && ./master
+	@cd $(BIN) && ./dbms 3

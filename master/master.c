@@ -58,7 +58,6 @@ u_int max_vector_len;
 int main(int argc, char *argv[])
 {
     int i, j;
-
     /* Connect to message queue. */
     partition_t = RING_CH;
     query_plan_t = STARFISH;
@@ -77,12 +76,9 @@ int main(int argc, char *argv[])
     /* index in slave list will be the machine ID (0 is master) */
     slavelist = (slave_ll *) malloc(sizeof(slave_ll));
     slave_ll *head = slavelist;
-    for (i = 1; i <= num_slaves; i++) {
-        /* TODO: when we use CLI args, change this array */
+    for (i = 0; i < num_slaves; i++) {
         slave *s = new_slave(slave_addresses[i]);
-        /* could not connect */
-        if (setup_slave(s));
-        else {
+        if (!setup_slave(s)) { /* connected to slave? */
             slavelist->slave_node = s;
             if (i < num_slaves - 1) {
                 slavelist->next = (slave_ll *) malloc(sizeof(slave_ll));
@@ -90,6 +86,7 @@ int main(int argc, char *argv[])
             }
         }
     }
+    /* terminate linked-list */
     slavelist->next = NULL;
     slavelist = head;
 
@@ -133,9 +130,10 @@ int main(int argc, char *argv[])
             break;
         }
     }
-    int msgs = 0, msq_id = msgget(MSQ_KEY, MSQ_PERMISSIONS | IPC_CREAT), rc;
+    int msq_id = msgget(MSQ_KEY, MSQ_PERMISSIONS | IPC_CREAT), rc;
     struct msgbuf *request;
     struct msqid_ds buf;
+    puts("entering loop");
     while (true) {
         msgctl(msq_id, IPC_STAT, &buf);
         heartbeat(); // TODO: this can be called elsewhere
@@ -154,8 +152,8 @@ int main(int argc, char *argv[])
             }
 
             if (request->mtype == mtype_put) {
+                puts("Put message");
                 //slave **commit_slaves = malloc(sizeof(slave*) * replication_factor);
-                printf("Message %d received\n", ++msgs);
                 continue;
                 slave *commit_slaves[replication_factor];
                 unsigned int *slave_ids =
@@ -175,6 +173,7 @@ int main(int argc, char *argv[])
                     heartbeat();
             }
             else if (request->mtype == mtype_range_query) {
+                puts("Range query");
                 range_query_contents contents = request->range_query;
                 switch (query_plan_t) { // TODO: fill in cases
                     case STARFISH: {

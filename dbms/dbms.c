@@ -136,6 +136,14 @@ int main(int argc, char *argv[])
             snprintf(buf, 64, "../tst_data/tpc/vec/v_%d.dat", i);
             put_vector(msq_id, i, read_vector(buf));
         }
+        /* read queries */
+        FILE *fp = fopen("../tst_data/tpc/qs/qs.dat", "r");
+        char *line = NULL;
+        size_t n = 0;
+        while (getline(&line, &n, fp) != -1) {
+            range_query(msq_id, line);
+        }
+        puts("Range queries done");
     }
     else {
         return_val = 1;
@@ -163,9 +171,7 @@ int put_vector(int queue_id, vec_id_t vec_id, vec_t *vec)
     put->vector = *av;
 
     msgsnd(queue_id, put, sizeof(msgbuf), 0);
-    // free(vec);
-    // free(av);
-    // free(put);
+
     return EXIT_SUCCESS;
 }
 

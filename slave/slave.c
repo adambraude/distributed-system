@@ -22,7 +22,7 @@
 #include <unistd.h>
 #include <string.h>
 
-char **slave_addresses;
+char **slave_addresses = NULL;
 
 query_result *get_vector(u_int vec_id)
 {

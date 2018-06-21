@@ -117,12 +117,12 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
             exit_code = EXIT_FAILURE;
         }
         else {
-            next_result = rq_pipe_1(*(query.next), client);
             /* give the request a time-to-live */
             struct timeval tv;
             tv.tv_sec = TIME_TO_VOTE;
             tv.tv_usec = 0;
             clnt_control(client, CLSET_TIMEOUT, &tv);
+            next_result = rq_pipe_1(*(query.next), client);
             if (next_result == NULL) {
                 clnt_perror(client, "call failed:");
                 this_result->exit_code = EXIT_FAILURE;

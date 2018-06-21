@@ -37,23 +37,16 @@ int fill_slave_arr(char *slv_filename, char ***slave_arr_ptr)
     FILE *fp;
     fp = fopen(slv_filename, "r");
     if (fp) {
-        int count = 0;
+        int count = 0, i, read;
         char c;
         for (c = getc(fp); c != EOF; c = getc(fp))
             if (c == '\n')
                 count++;
-        // if (*slave_arr_ptr != NULL){
-        //     puts("About to free");
-        //     free(*slave_arr_ptr);
-        //     puts("freed");
-        // }
         *slave_arr_ptr = (char **) malloc(sizeof(char *) * count);
-        int i;
         for (i = 0; i < count; i++){
             (*slave_arr_ptr)[i] =
                 (char *) malloc(sizeof(char) * SLAVE_ADDR_LEN);
         }
-        int read;
         char *line = NULL;
         size_t len = 0;
         int slave_arr_ptr_index = 0;

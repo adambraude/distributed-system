@@ -3,6 +3,8 @@
 #include <string.h>
 #include <assert.h>
 
+#define SLAVE_ADDR_LEN 32
+
 char **slaves;
 
 //#define TESTING_UTILS
@@ -47,8 +49,9 @@ int fill_slave_arr(char *slv_filename, char ***slave_arr_ptr)
         // }
         *slave_arr_ptr = (char **) malloc(sizeof(char *) * count);
         int i;
-        for (i = 0; i < 128; i++){
-            (*slave_arr_ptr)[i] = (char *) malloc(sizeof(char) * 32);
+        for (i = 0; i < count; i++){
+            (*slave_arr_ptr)[i] =
+                (char *) malloc(sizeof(char) * SLAVE_ADDR_LEN);
         }
         int read;
         char *line = NULL;

@@ -20,7 +20,7 @@ typedef struct push_vec_args {
 // TODO move all master RPC functions into one file
 
 /*
- * Commit the given vid:vector mappings to the given array of slaves.
+ * Commit the given vid:vector mapping to the given array of slaves.
  */
 int commit_vector(vec_id_t vec_id, vec_t vector, slave *slaves[], int num_slaves)
 {

@@ -30,9 +30,9 @@ char **slave_addresses;
 /* variables for use in all master functions */
 slave_ll *slavelist;
 u_int slave_id_counter = 0;
-u_int partition_t;
-u_int query_plan_t;
-int num_slaves;
+partition_t partition;
+query_plan_t query_plan;
+u_int num_slaves;
 
 /*
  * slave presumed dead,
@@ -59,8 +59,8 @@ int main(int argc, char *argv[])
 {
     int i, j;
     /* Connect to message queue. */
-    partition_t = RING_CH;
-    query_plan_t = STARFISH;
+    partition = RING_CH;
+    query_plan = STARFISH;
 
     /* Holder for a dead slave */
     dead_slave = NULL;
@@ -93,7 +93,7 @@ int main(int argc, char *argv[])
     /*
      * setup partitions
      */
-    switch (partition_t) {
+    switch (partition) {
         case RING_CH: {
             chash_table = new_rbt();
             slave_ll *head = slavelist;
@@ -130,10 +130,9 @@ int main(int argc, char *argv[])
             break;
         }
     }
-    int msq_id = msgget(MSQ_KEY, MSQ_PERMISSIONS | IPC_CREAT), rc;
+    int msq_id = msgget(MSQ_KEY, MSQ_PERMISSIONS | IPC_CREAT), rc, qnum = 0;
     struct msgbuf *request;
     struct msqid_ds buf;
-    puts("entering loop");
     while (true) {
         msgctl(msq_id, IPC_STAT, &buf);
         heartbeat(); // TODO: this can be called elsewhere
@@ -152,33 +151,21 @@ int main(int argc, char *argv[])
             }
 
             if (request->mtype == mtype_put) {
-                puts("Put message");
-                //slave **commit_slaves = malloc(sizeof(slave*) * replication_factor);
-                continue;
-                slave *commit_slaves[replication_factor];
-                unsigned int *slave_ids =
+                slave **commit_slaves =
                     get_machines_for_vector(request->vector.vec_id, false);
-                slave_ll *head = slavelist;
-                int cs_index = 0;
-                for (i = 0; i < num_slaves; i++) {
-                    if (head->slave_node->id == slave_ids[0] ||
-                        head->slave_node->id == slave_ids[1])
-                        commit_slaves[cs_index++] = head->slave_node;
-                    if (cs_index == replication_factor - 1) break;
-                    head = head->next;
-                }
                 int commit_res = commit_vector(request->vector.vec_id, request->vector.vec,
                     commit_slaves, replication_factor);
                 if (commit_res)
                     heartbeat();
             }
             else if (request->mtype == mtype_range_query) {
-                puts("Range query");
+                printf("Range query %d\n", ++qnum);
                 range_query_contents contents = request->range_query;
-                switch (query_plan_t) { // TODO: fill in cases
+                switch (query_plan) { // TODO: fill in cases
                     case STARFISH: {
                         while (starfish(contents))
                             heartbeat();
+                        break;
                     }
                     case UNISTAR: {
 
@@ -187,6 +174,9 @@ int main(int argc, char *argv[])
 
                     }
                     case ITER_PRIM: {
+
+                    }
+                    default: {
 
                     }
                 }
@@ -241,15 +231,15 @@ int starfish(range_query_contents contents)
         range_array[array_index++] = range_len;
         u_int **machine_vec_ptrs = (u_int **) malloc(sizeof(int *) * range_len);
         for (j = range[0]; j <= range[1]; j++) {
-            u_int *tuple = get_machines_for_vector(j, false);
+            slave **tuple = get_machines_for_vector(j, false);
             if (flip) {
-                u_int temp = tuple[0];
+                slave *temp = tuple[0];
                 tuple[0] = tuple[1];
                 tuple[1] = temp;
             }
             int mvp_addr = j - range[0];
             machine_vec_ptrs[mvp_addr] = (u_int *) malloc(sizeof(u_int) * 2);
-            machine_vec_ptrs[mvp_addr][0] = tuple[0];
+            machine_vec_ptrs[mvp_addr][0] = tuple[0]->id;
             machine_vec_ptrs[mvp_addr][1] = j;
             free(tuple);
         }
@@ -311,14 +301,13 @@ int remove_slave(u_int slave_id)
     dead_slave = *head;
     /* ...and just remove it (Torvalds-style) */
     *head = (*head)->next;
-    num_slaves--;
-    if (num_slaves == 1) replication_factor = 1;
+    if (--num_slaves == 1) replication_factor = 1;
     return EXIT_SUCCESS;
 }
 
 void reallocate()
 {
-    switch (partition_t) {
+    switch (partition) {
         case RING_CH: {
             u_int pred_id = ring_get_pred_id(chash_table, dead_slave->id);
             u_int succ_id = ring_get_succ_id(chash_table, dead_slave->id);
@@ -333,9 +322,6 @@ void reallocate()
                 if (head->slave_node->id == sucsuc_id) sucsuc = head->slave_node;
                 head = head->next;
             }
-            // TODO: have send_vector take an *integer* instead, and get the
-            // address out of the slavelist array
-            // transfer predecessor's vectors to dead node's successor
             slave_vector *vec = pred->primary_vector_head;
             if (pred != succ) {
                 while (vec != NULL) {
@@ -354,6 +340,15 @@ void reallocate()
             succ->primary_vector_tail = dead_slave->primary_vector_tail;
 
             delete_entry(chash_table, dead_slave->id);
+            break;
+        }
+
+        case JUMP_CH: {
+            break;
+        }
+
+        case STATIC_PARTITION: {
+            break;
         }
     }
 }
@@ -363,9 +358,9 @@ void reallocate()
  * that t = (m1, m2) and m1 != m2 if there at least 2 slaves available.
  * If this is a *new* vector, updating should be true, false otherwise.
  */
-u_int *get_machines_for_vector(vec_id_t vec_id, bool updating)
+slave **get_machines_for_vector(vec_id_t vec_id, bool updating)
 {
-    switch (partition_t) {
+    switch (partition) {
         case RING_CH: {
             u_int *tr = ring_get_machines_for_vector(chash_table, vec_id);
             if (updating) {
@@ -388,7 +383,16 @@ u_int *get_machines_for_vector(vec_id_t vec_id, bool updating)
                     vec->next = NULL;
                 }
             }
-            return tr;
+            slave **tr_slaves = (slave **) malloc(sizeof(slave*) * replication_factor);
+            int i;
+            for (i = 0; i < replication_factor; i++) {
+                slave_ll *node = slavelist;
+                for (; node != NULL; node = node->next) {
+                    if (node->slave_node->id == tr[i])
+                        tr_slaves[i] = node->slave_node;
+                }
+            }
+            return tr_slaves;
         }
 
         case JUMP_CH: {
@@ -403,7 +407,8 @@ u_int *get_machines_for_vector(vec_id_t vec_id, bool updating)
             assert(index >= 0 && index < num_slaves);
             machines[0] = partition_scale_1[index];
             machines[1] = partition_scale_2[index];
-            return machines;
+            // return machines;
+            return NULL;
         }
 
         default: {

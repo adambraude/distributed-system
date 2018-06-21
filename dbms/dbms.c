@@ -137,7 +137,7 @@ int main(int argc, char *argv[])
             put_vector(msq_id, i, read_vector(buf));
         }
         /* read queries */
-        FILE *fp = fopen("../tst_data/tpc/qs/qs.dat", "r");
+        FILE *fp = fopen("../tst_data/tpc/qs/query_lt128.dat", "r");
         char *line = NULL;
         size_t n = 0;
         while (getline(&line, &n, fp) != -1) {

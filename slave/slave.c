@@ -6,7 +6,7 @@
 #include "slave.h"
 #include "../rpc/vote.h"
 
-#include "../master/slavelist.h"
+//#include "../master/slavelist.h"
 
 #include "../../bitmap-engine/BitmapEngine/src/seg-util/SegUtil.h"
 #include "../../bitmap-engine/BitmapEngine/src/wah/WAHQuery.h"
@@ -61,7 +61,8 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
         return this_result;
     /* Recursive Query */
     else {
-        while (!strcmp(query.next->machine_addr, SLAVE_ADDR[slave_id])) {
+        /* process vectors on this machine */
+        while (!strcmp(query.next->machine_addr, slave_addresses[slave_id])) {
             next_result = get_vector(query.next->vec_id);
             u_int result_len = 0;
             u_int v_len = max(this_result->vector.vector_len,
@@ -90,7 +91,7 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
                 return res;
             }
             query = *query.next;
-            if (query.next == NULL) {
+            if (query.next == NULL) { /* query finished */
                 query_result *res = (query_result *) malloc(sizeof(query_result));
                 res->vector.vector_len = result_len;
                 res->vector.vector_val = result_val;
@@ -100,7 +101,7 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
                 res->error_message = "";
                 return res;
             }
-            /* there are still more vectors to visit! */
+            /* there are still more vectors to grab */
             u_int64_t res_arr[result_len];
             memset(res_arr, 0, result_len * sizeof(u_int64_t));
             this_result->vector.vector_val = res_arr;
@@ -122,15 +123,16 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
             tv.tv_sec = TIME_TO_VOTE;
             tv.tv_usec = 0;
             clnt_control(client, CLSET_TIMEOUT, &tv);
+            printf("RPCing %s, vec %u\n", query.next->machine_addr, query.next->vec_id);
             next_result = rq_pipe_1(*(query.next), client);
             if (next_result == NULL) {
-                clnt_perror(client, "Recursive pipe call failed:");
+                clnt_perror(client, "Recursive pipe call failed");
                 this_result->exit_code = EXIT_FAILURE;
                 this_result->error_message =
                     machine_failure_msg(query.next->machine_addr);
                 return this_result;
             }
-
+            puts("Call succeeded");
             clnt_destroy(client);
         }
     }

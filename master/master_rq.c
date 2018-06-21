@@ -5,7 +5,7 @@
 #include "master_rq.h"
 #include "master.h"
 #include "../rpc/gen/slave.h"
-#include "slavelist.h"
+//#include "slavelist.h"
 #include "../util/ds_util.h"
 #include "../../bitmap-engine/BitmapEngine/src/seg-util/SegUtil.h"
 #include "../../bitmap-engine/BitmapEngine/src/wah/WAHQuery.h"

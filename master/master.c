@@ -13,7 +13,7 @@
 
 #include "master.h"
 #include "master_rq.h"
-#include "slavelist.h"
+//#include "slavelist.h"
 #include "tpc_master.h"
 #include "../bitmap-vector/read_vec.h"
 #include "../consistent-hash/ring/src/tree_map.h"
@@ -151,6 +151,7 @@ int main(int argc, char *argv[])
             }
 
             if (request->mtype == mtype_put) {
+                printf("Putting vector %d\n", request->vector.vec_id);
                 slave **commit_slaves =
                     get_machines_for_vector(request->vector.vec_id, true);
                 int commit_res = commit_vector(request->vector.vec_id, request->vector.vec,

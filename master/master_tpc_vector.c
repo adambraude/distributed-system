@@ -6,7 +6,7 @@
 #include "../rpc/vote.h"
 #include "../rpc/gen/slave.h"
 
-#include "slavelist.h"
+//#include "slavelist.h"
 pthread_mutex_t lock;
 int successes;
 

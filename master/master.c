@@ -152,7 +152,7 @@ int main(int argc, char *argv[])
 
             if (request->mtype == mtype_put) {
                 slave **commit_slaves =
-                    get_machines_for_vector(request->vector.vec_id, false);
+                    get_machines_for_vector(request->vector.vec_id, true);
                 int commit_res = commit_vector(request->vector.vec_id, request->vector.vec,
                     commit_slaves, replication_factor);
                 if (commit_res)
@@ -316,27 +316,28 @@ void reallocate()
             slave *pred, *succ, *sucsuc;
             // TODO could skip this step by storing the nodes in the tree
             // instead of having to find them this way
-            while (head != NULL) {
+            for (; head != NULL; head = head->next) {
                 if (head->slave_node->id == pred_id) pred = head->slave_node;
                 if (head->slave_node->id == succ_id) succ = head->slave_node;
-                if (head->slave_node->id == sucsuc_id) sucsuc = head->slave_node;
-                head = head->next;
+                if (head->slave_node->id == sucsuc_id)
+                    sucsuc = head->slave_node;
             }
+
             slave_vector *vec = pred->primary_vector_head;
             if (pred != succ) {
-                while (vec != NULL) {
-                    send_vector(pred, vec->id, succ); // TODO: code this RPC
-                    vec = vec->next;
+                for (; vec != NULL; vec = vec->next) {
+                    send_vector(pred, vec->id, succ);
                 }
             }
+
             vec = dead_slave->primary_vector_head;
             // transfer successor's nodes to its successor as its backup
-            while (vec != NULL) {
+            for (; vec != NULL; vec = vec->next) {
                 send_vector(dead_slave, vec->id, sucsuc);
-                vec = vec->next;
             }
+
             // join dead node's linked list with the successor
-            succ->primary_vector_tail->next = dead_slave->primary_vector_head;
+            dead_slave->primary_vector_head->next = succ->primary_vector_tail;
             succ->primary_vector_tail = dead_slave->primary_vector_tail;
 
             delete_entry(chash_table, dead_slave->id);

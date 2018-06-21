@@ -130,7 +130,7 @@ int main(int argc, char *argv[])
         range_query(msq_id, range);
     }
     else if (test_no == TPCORG_C_TEST) {
-        int num_vecs = 5320, i;
+        int num_vecs = 1280, i; /* NB: bitmap workload max vector id = 1271 */
         char buf[64];
         for (i = 0; i < num_vecs; i++) {
             snprintf(buf, 64, "../tst_data/tpc/vec/v_%d.dat", i);

@@ -124,7 +124,7 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
             clnt_control(client, CLSET_TIMEOUT, &tv);
             next_result = rq_pipe_1(*(query.next), client);
             if (next_result == NULL) {
-                clnt_perror(client, "call failed:");
+                clnt_perror(client, "Recursive pipe call failed:");
                 this_result->exit_code = EXIT_FAILURE;
                 this_result->error_message =
                     machine_failure_msg(query.next->machine_addr);
@@ -137,6 +137,7 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
 
     /* Something went wrong with the recursive call. */
     if (next_result->exit_code != EXIT_SUCCESS) {
+        printf("Result response: %s", next_result->machine_addr);
         free(this_result);
         return next_result;
     }

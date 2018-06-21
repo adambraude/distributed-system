@@ -40,11 +40,11 @@ int fill_slave_arr(char *slv_filename, char ***slave_arr_ptr)
         for (c = getc(fp); c != EOF; c = getc(fp))
             if (c == '\n')
                 count++;
-        if (*slave_arr_ptr != NULL){
-            puts("About to free");
-            free(*slave_arr_ptr);
-            puts("freed");
-        }
+        // if (*slave_arr_ptr != NULL){
+        //     puts("About to free");
+        //     free(*slave_arr_ptr);
+        //     puts("freed");
+        // }
         *slave_arr_ptr = (char **) malloc(sizeof(char *) * count);
         int i;
         for (i = 0; i < 128; i++){

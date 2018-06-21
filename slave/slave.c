@@ -191,7 +191,6 @@ int *commit_msg_1_svc(int message, struct svc_req *req)
         result = VOTE_COMMIT;
     }
     else {
-        /* possible reasons: lack of memory, ... */
         result = VOTE_ABORT;
     }
     /* make the process run slow, to test failure */
@@ -229,10 +228,13 @@ int *commit_vec_1_svc(struct commit_vec_args args, struct svc_req *req)
 int *init_slave_1_svc(init_slave_args args, struct svc_req *req)
 {
     slave_id = args.slave_id; /* assign this slave its ID */
+    slave_addresses = (char **) malloc(sizeof(char *));
+    char **tmp_ptr = slave_addresses;
     if (fill_slave_arr(SLAVELIST_PATH, &slave_addresses) == -1) {
         result = EXIT_FAILURE;
         return &result;
     }
+    free(tmp_ptr);
     printf("On machine %s, assigned slave number %d\n",
         slave_addresses[slave_id], slave_id);
     result = EXIT_SUCCESS;

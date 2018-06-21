@@ -40,6 +40,6 @@ void print_tree(rbt_ptr, node_ptr);
 cache_id *ring_get_machines_for_vector(rbt_ptr, unsigned int);
 cache_id ring_get_succ_id(rbt_ptr t, cache_id cid);
 cache_id ring_get_pred_id(rbt_ptr t, cache_id cid);
-void delete_entry(rbt_ptr, hash_value);
+void delete_entry(rbt_ptr, cache_id);
 
 #endif

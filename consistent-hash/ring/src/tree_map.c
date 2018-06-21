@@ -84,7 +84,7 @@ cache_id ring_get_pred_id(rbt_ptr t, cache_id cid)
 node_ptr pred(rbt_ptr t, hash_value value)
 {
     node_ptr n = t->root;
-    node_ptr pr = NULL;
+    node_ptr pr = t->nil;
     while (n->hv != value) {
         if (value > n->hv) {
             pr = n;
@@ -95,9 +95,9 @@ node_ptr pred(rbt_ptr t, hash_value value)
         }
     }
     if (n == rbt_min(t, t->root)) return rbt_max(t, t->root);
-    if (pr == NULL) { // we didn't go right: find rightmost node of left subtree
+    if (pr == t->nil) { // we didn't go right: find rightmost node of left subtree
         pr = n->left;
-        while (pr->right != NULL) pr = pr->right;
+        while (pr->right != t->nil) pr = pr->right;
     }
     return pr;
 }
@@ -121,9 +121,9 @@ node_ptr get_node_with_hv(rbt_ptr t, hash_value hv)
     return res;
 }
 
-void delete_entry(rbt_ptr t, hash_value hv)
+void delete_entry(rbt_ptr t, cache_id id)
 {
-    rbt_delete(t, get_node_with_hv(t, hv));
+    rbt_delete(t, get_node_with_hv(t, hash(id)));
 }
 
 void print_tree(rbt_ptr t, node_ptr c)

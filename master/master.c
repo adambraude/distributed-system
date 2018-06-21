@@ -298,7 +298,7 @@ int remove_slave(u_int slave_id)
     /* Look for the address of the node to remove... */
     while ((*head)->slave_node->id != slave_id)
         head = &(*head)->next;
-    dead_slave = *head;
+    dead_slave = (*head)->slave_node;
     /* ...and just remove it (Torvalds-style) */
     *head = (*head)->next;
     if (--num_slaves == 1) replication_factor = 1;

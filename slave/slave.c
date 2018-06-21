@@ -137,7 +137,11 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
 
     /* Something went wrong with the recursive call. */
     if (next_result->exit_code != EXIT_SUCCESS) {
+<<<<<<< HEAD
         printf("Result response: %s", next_result->error_message);
+=======
+        printf("Result response: %s", next_result->machine_addr);
+>>>>>>> fb0034445353e75416d395c596c0554f23e6244a
         free(this_result);
         return next_result;
     }

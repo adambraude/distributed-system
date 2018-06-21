@@ -228,7 +228,7 @@ int *commit_vec_1_svc(struct commit_vec_args args, struct svc_req *req)
 int *init_slave_1_svc(init_slave_args args, struct svc_req *req)
 {
     slave_id = args.slave_id; /* assign this slave its ID */
-    if (fill_slave_arr(SLAVELIST_PATH, &slave_addresses) == -1) {
+    if (fill_slave_arr(SLAVELIST_PATH, &slave_addresses) < 0) {
         result = EXIT_FAILURE;
         return &result;
     }

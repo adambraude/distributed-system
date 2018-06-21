@@ -28,6 +28,10 @@ int main(void)
  */
 int fill_slave_arr(char *slv_filename, char ***slave_arr_ptr)
 {
+    if (!slave_arr_ptr) {
+        printf("Error: invalid slave array pointer given\n");
+        return -2;
+    }
     FILE *fp;
     fp = fopen(slv_filename, "r");
     if (fp) {
@@ -36,7 +40,7 @@ int fill_slave_arr(char *slv_filename, char ***slave_arr_ptr)
         for (c = getc(fp); c != EOF; c = getc(fp))
             if (c == '\n')
                 count++;
-        if (slave_arr_ptr != NULL)
+        if (*slave_arr_ptr != NULL)
             free(*slave_arr_ptr);
         *slave_arr_ptr = (char **) malloc(sizeof(char *) * count);
         int i;

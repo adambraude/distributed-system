@@ -127,12 +127,15 @@ int main(int argc, char *argv[])
     }
     int msq_id = msgget(MSQ_KEY, MSQ_PERMISSIONS | IPC_CREAT), rc, qnum = 0;
     int slave_death_inst = 500; /* at query 500, kill a slave */
+    bool killed = false;
     struct msgbuf *request;
     struct msqid_ds buf;
+    u_int64_t pre_kill_tot = 0, post_kill_tot = 0;
     while (true) {
         msgctl(msq_id, IPC_STAT, &buf);
         if (qnum == slave_death_inst) {
             kill_random_slave(num_slaves);
+            killed = true;
         }
         heartbeat(); // TODO: this can be called elsewhere
         if (buf.msg_qnum > 0) {
@@ -185,8 +188,10 @@ int main(int argc, char *argv[])
                 u_int64_t dt = (end.tv_sec - start.tv_sec) * 1000000
                     + (end.tv_nsec - start.tv_nsec) / 1000;
                 // TODO write this to a file
-                printf("%f: Range query %d took %llu ms\n",
-                    (float) end.tv_nsec / 1000000000000l , ++qnum, dt);
+                if (killed) post_kill_tot += dt;
+                else pre_kill_tot += dt;
+                printf("%ld: Range query %d took %llu ms\n",
+                    end.tv_nsec, ++qnum, dt);
 
             }
             else if (request->mtype == mtype_point_query) {
@@ -195,6 +200,8 @@ int main(int argc, char *argv[])
             free(request);
         }
     }
+    printf("Avg time prekill: %f\n ms\n", ((float) pre_kill_tot) / 500);
+    printf("Avg time postkill: %f ms\n", ((float) post_kill_tot) / 500);
 
     /* deallocation */
     while (slavelist != NULL) {
@@ -290,7 +297,13 @@ int heartbeat()
             if (num_slaves == 0) {
                 return 1;
             }
+            struct timespec start, end;
+            clock_gettime(CLOCK_REALTIME, &start);
             reallocate();
+            clock_gettime(CLOCK_REALTIME, &end);
+            printf("Reallocation time = %ld ms\n",
+                (end.tv_sec - start.tv_sec) * 1000000
+                + (end.tv_nsec - start.tv_nsec) / 1000);
         }
     }
     return 0;

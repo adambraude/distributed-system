@@ -331,7 +331,7 @@ void reallocate()
             vec = dead_slave->primary_vector_head;
             // transfer successor's nodes to its successor as its backup
             for (; vec != NULL; vec = vec->next) {
-                send_vector(dead_slave, vec->id, sucsuc);
+                send_vector(succ, vec->id, sucsuc);
             }
 
             // join dead node's linked list with the successor

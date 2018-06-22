@@ -180,6 +180,5 @@ int send_vector(slave *slave_1, vec_id_t vec_id, slave *slave_2)
     strcpy(args.destination_addr, addr);
     int *res = send_vec_1(args, cl);
     clnt_destroy(cl);
-    //free(args);
     return *res;
 }

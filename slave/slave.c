@@ -36,7 +36,7 @@ query_result *get_vector(u_int vec_id)
         res->vector.vector_len = 0;
         res->exit_code = EXIT_FAILURE;
         char buf[128];
-        snprintf(buf, 128, "Error: could not locate vector %d on machine %s", vec_id, slave_addresses[slave_id]); // TODO: also machine name?
+        snprintf(buf, 128, "Error: could not locate vector %d on machine %s\n", vec_id, slave_addresses[slave_id]); // TODO: also machine name?
         res->error_message = buf;
         return res;
     }
@@ -260,7 +260,9 @@ int *send_vec_1_svc(copy_vector_args copy_args, struct svc_req *req)
     args.vec_id = copy_args.vec_id;
     query_result *qres = get_vector(copy_args.vec_id);
     memcpy(&args.vector, &qres->vector, sizeof(qres->vector));
+    printf("Sending vector %u to %s", copy_args.vec_id, copy_args.destination_addr);
     result = *commit_vec_1_svc(args, cl);
+    puts("Sent");
     free(qres);
     return &result;
 }

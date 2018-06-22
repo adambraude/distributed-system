@@ -13,7 +13,6 @@
 
 #include "master.h"
 #include "master_rq.h"
-//#include "slavelist.h"
 #include "tpc_master.h"
 #include "../bitmap-vector/read_vec.h"
 #include "../consistent-hash/ring/src/tree_map.h"
@@ -58,14 +57,12 @@ u_int max_vector_len;
 int main(int argc, char *argv[])
 {
     int i, j;
-    /* Connect to message queue. */
     partition = RING_CH;
     query_plan = STARFISH;
 
     /* Holder for a dead slave */
     dead_slave = NULL;
 
-    /* setup values, acquired from slavelist.h */
     int c;
     num_slaves = fill_slave_arr(SLAVELIST_PATH, &slave_addresses);
     if (num_slaves == -1) {

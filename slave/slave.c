@@ -208,6 +208,7 @@ int *commit_vec_1_svc(struct commit_vec_args args, struct svc_req *req)
 {
     FILE *fp;
     char filename_buf[128];
+    printf("Recieved vector %d\n", args.vec_id);
     snprintf(filename_buf, 128, "v_%d.dat", args.vec_id); // TODO: function to get vector filename
     fp = fopen(filename_buf, "wb");
     char buffer[1024];

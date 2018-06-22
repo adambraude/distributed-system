@@ -18,9 +18,7 @@
 #include "../consistent-hash/ring/src/tree_map.h"
 #include "../types/types.h"
 #include "../util/ds_util.h"
-
-#define TEST_NUM_VECTORS 5000
-#define TEST_MAX_LINE_LEN 5120
+#include "../experiments/fault_tolerance.h"
 
 #define MS_DEBUG false
 
@@ -191,7 +189,7 @@ int main(int argc, char *argv[])
                 if (killed) post_kill_tot += dt;
                 else pre_kill_tot += dt;
                 printf("%ld: Range query %d took %llu ms\n",
-                    end.tv_nsec, ++qnum, dt);
+                    end.tv_sec, ++qnum, dt);
 
             }
             else if (request->mtype == mtype_point_query) {
@@ -200,8 +198,8 @@ int main(int argc, char *argv[])
             free(request);
         }
     }
-    printf("Avg time prekill: %f\n ms\n", ((float) pre_kill_tot) / 500);
-    printf("Avg time postkill: %f ms\n", ((float) post_kill_tot) / 500);
+    printf("Avg time prekill: %f ms\n", ((float) pre_kill_tot) / FT_PREKILL_Q);
+    printf("Avg time postkill: %f ms\n", ((float) post_kill_tot) / FT_POSTKILL_Q);
 
     /* deallocation */
     while (slavelist != NULL) {

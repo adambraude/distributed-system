@@ -2,6 +2,7 @@
 #include "../ipc/messages.h"
 #include "../types/types.h"
 #include "../bitmap-vector/read_vec.h"
+#include "../experiments/fault_tolerance.h"
 
 #include <errno.h>
 #include <stdbool.h>
@@ -130,7 +131,8 @@ int main(int argc, char *argv[])
         range_query(msq_id, range);
     }
     else if (test_no == TPCORG_C_TEST) {
-        int num_vecs = 1280, i; /* NB: bitmap workload max vector id = 1271 */
+
+        int num_vecs = FT_NUM_VEC, i;
         char buf[64];
         for (i = 0; i < num_vecs; i++) {
             snprintf(buf, 64, "../tst_data/tpc/vec/v_%d.dat", i);
@@ -140,10 +142,10 @@ int main(int argc, char *argv[])
         FILE *fp = fopen("../tst_data/tpc/qs/query_lt128.dat", "r");
         char *line = NULL;
         size_t n = 0;
-        while (getline(&line, &n, fp) != -1) {
+        int qnum = 0;
+        while (getline(&line, &n, fp) != -1 && qnum++ < FT_NUM_QUERIES) {
             range_query(msq_id, line);
         }
-        puts("Range queries done");
     }
     else {
         return_val = 1;
@@ -154,6 +156,7 @@ int main(int argc, char *argv[])
     int master_result = 0;
     /* Reap master. */
     wait(&master_result);
+    puts("DBMS: Master process killed, closing");
 
     /* Destroy message queue. */
     msgctl(msq_id, IPC_RMID, NULL);

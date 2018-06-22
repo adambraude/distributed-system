@@ -363,7 +363,7 @@ slave **get_machines_for_vector(vec_id_t vec_id, bool updating)
 {
     switch (partition) {
         case RING_CH: {
-            u_int *tr = ring_get_machines_for_vector(chash_table, vec_id);
+            long long *tr = ring_get_machines_for_vector(chash_table, vec_id);
             if (updating) {
                 // update this slave's primary vectors
                 slave_ll *head = slavelist;

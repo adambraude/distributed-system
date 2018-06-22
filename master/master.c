@@ -310,6 +310,8 @@ void reallocate()
             u_int pred_id = ring_get_pred_id(chash_table, dead_slave->id);
             u_int succ_id = ring_get_succ_id(chash_table, dead_slave->id);
             u_int sucsuc_id = ring_get_succ_id(chash_table, succ_id);
+            print_tree(chash_table, chash_table->root);
+            printf("Dead: %d Pred: %d Succ: %d Sucsuc: %d\n",dead_slave->id, pred_id, succ_id, sucsuc_id);
             slave_ll *head = slavelist;
             slave *pred, *succ, *sucsuc;
             // TODO could skip this step by storing the nodes in the tree

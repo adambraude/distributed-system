@@ -260,7 +260,7 @@ int *send_vec_1_svc(copy_vector_args copy_args, struct svc_req *req)
     args.vec_id = copy_args.vec_id;
     query_result *qres = get_vector(copy_args.vec_id);
     memcpy(&args.vector, &qres->vector, sizeof(qres->vector));
-    printf("Sending vector %u to %s", copy_args.vec_id, copy_args.destination_addr);
+    printf("Sending vector %u to %s\n", copy_args.vec_id, copy_args.destination_addr);
     result = *commit_vec_1_svc(args, cl);
     puts("Sent");
     free(qres);

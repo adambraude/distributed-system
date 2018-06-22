@@ -128,6 +128,7 @@ void delete_entry(rbt_ptr t, cache_id id)
 
 void print_tree(rbt_ptr t, node_ptr c)
 {
+    printf("%d\n", c->cid);
     if (c == t->nil) return;
     print_tree(t, c->right);
     print_tree(t, c->left);

@@ -126,7 +126,7 @@ int main(int argc, char *argv[])
         }
     }
     int msq_id = msgget(MSQ_KEY, MSQ_PERMISSIONS | IPC_CREAT), rc, qnum = 0;
-    int slave_death_inst = 400; /* at query 400, kill a slave */
+    int slave_death_inst = 500; /* at query 500, kill a slave */
     struct msgbuf *request;
     struct msqid_ds buf;
     while (true) {
@@ -159,8 +159,9 @@ int main(int argc, char *argv[])
                     heartbeat();
             }
             else if (request->mtype == mtype_range_query) {
-                printf("Range query %d\n", ++qnum);
                 range_query_contents contents = request->range_query;
+                struct timespec start, end;
+                clock_gettime(CLOCK_REALTIME, &start);
                 switch (query_plan) { // TODO: fill in cases
                     case STARFISH: {
                         while (starfish(contents))
@@ -180,6 +181,13 @@ int main(int argc, char *argv[])
 
                     }
                 }
+                clock_gettime(CLOCK_REALTIME, &end);
+                u_int64_t dt = (end.tv_sec - start.tv_sec) * 1000000
+                    + (end.tv_nsec - start.tv_nsec) / 1000;
+                // TODO write this to a file
+                printf("%f: Range query %d took %llu ms\n",
+                    (float) end.tv_nsec / 1000000000000l , ++qnum, dt);
+
             }
             else if (request->mtype == mtype_point_query) {
                 /* TODO: Call Jahrme function here */

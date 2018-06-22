@@ -274,8 +274,8 @@ int *send_vec_1_svc(copy_vector_args copy_args, struct svc_req *req)
  */
 int *kill_order_1_svc(int arg, struct svc_req *req)
 {
+    puts("Exiting...");
     exit(0);
-    return &result; // technically unreachable, make compiler happy
 }
 
 /**

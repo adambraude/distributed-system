@@ -3,8 +3,8 @@
 
 #define NIL_HV 0
 
-typedef unsigned int cache_id;
-typedef int hash_value;
+typedef long long cache_id;
+typedef long long hash_value;
 
 typedef enum {RED, BLACK} rbt_node_color;
 

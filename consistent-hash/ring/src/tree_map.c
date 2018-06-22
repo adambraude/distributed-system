@@ -49,7 +49,7 @@ void insert_cache(rbt_ptr t, struct cache* cptr)
 {
     int i;
     for (i = 0; i < cptr->replication_factor; i++) {
-        rbt_insert(t, new_node(t, cptr->id, hash(cptr->id), RED));
+        rbt_insert(t, new_node(t, cptr->id, hash(cptr->id + i), RED));
     }
 }
 
@@ -128,8 +128,8 @@ void delete_entry(rbt_ptr t, cache_id id)
 
 void print_tree(rbt_ptr t, node_ptr c)
 {
-    printf("%d\n", c->cid);
     if (c == t->nil) return;
+    printf("ID: %lld Hash: %lld\n", c->cid, c->hv);
     print_tree(t, c->right);
     print_tree(t, c->left);
 }
@@ -140,15 +140,15 @@ node_ptr recur_succ(rbt_ptr t, node_ptr root, node_ptr suc, hash_value value)
         return suc;
     }
     if (value == root->hv) {
-        /* return leftmost node of right subtree */
-        suc = root->right;
-        if (suc == t->nil) {
-            suc = root;
-            while (suc->parent != t->nil && suc->hv < value) {
+        /* if right is nil, look back */
+        if (root->right == t->nil) {
+            while (suc->parent != t->nil && suc->parent->hv < value) {
                 suc = suc->parent;
             }
             return suc;
         }
+        /* otherwise, return leftmost node of right subtree */
+        suc = root->right;
         while (suc->left != t->nil) {
             suc = suc->left;
         }
@@ -177,8 +177,8 @@ rbt_ptr new_rbt(void)
     r = (rbt_ptr) malloc(sizeof(rbt));
     r->nil = (node_ptr) malloc(sizeof(node));
     r->nil->color = BLACK;
-    r->nil->hv = 0;
-    r->nil->cid = 0;
+    r->nil->hv = -1;
+    r->nil->cid = -1;
     r->root = r->nil;
     r->size = 0;
     return r;

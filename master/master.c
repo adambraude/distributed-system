@@ -24,8 +24,6 @@
 
 #define MS_DEBUG false
 
-char **slave_addresses;
-
 /* variables for use in all master functions */
 slave_ll *slavelist;
 u_int slave_id_counter = 0;
@@ -128,10 +126,14 @@ int main(int argc, char *argv[])
         }
     }
     int msq_id = msgget(MSQ_KEY, MSQ_PERMISSIONS | IPC_CREAT), rc, qnum = 0;
+    int slave_death_inst = 400; /* at query 400, kill a slave */
     struct msgbuf *request;
     struct msqid_ds buf;
     while (true) {
         msgctl(msq_id, IPC_STAT, &buf);
+        if (qnum == slave_death_inst) {
+            kill_random_slave(num_slaves);
+        }
         heartbeat(); // TODO: this can be called elsewhere
         if (buf.msg_qnum > 0) {
 
@@ -310,8 +312,6 @@ void reallocate()
             u_int pred_id = ring_get_pred_id(chash_table, dead_slave->id);
             u_int succ_id = ring_get_succ_id(chash_table, dead_slave->id);
             u_int sucsuc_id = ring_get_succ_id(chash_table, succ_id);
-            print_tree(chash_table, chash_table->root);
-            printf("Dead: %d Pred: %d Succ: %d Sucsuc: %d\n",dead_slave->id, pred_id, succ_id, sucsuc_id);
             slave_ll *head = slavelist;
             slave *pred, *succ, *sucsuc;
             // TODO could skip this step by storing the nodes in the tree
@@ -341,6 +341,8 @@ void reallocate()
             succ->primary_vector_tail = dead_slave->primary_vector_tail;
 
             delete_entry(chash_table, dead_slave->id);
+            printf("Reallocated after %s died\n",
+                slave_addresses[dead_slave->id]);
             break;
         }
 

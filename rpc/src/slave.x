@@ -114,3 +114,9 @@ program COPY_OVER_VECTOR {
         int SEND_VEC(copy_vector_args) = 1;
     } = 1;
 } = 0x70;
+
+program KILL_SLAVE {
+    version KILL_SLAVE_V1 {
+        int KILL_ORDER(int) = 1;
+    } = 1;
+} = 0x80;

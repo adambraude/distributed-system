@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <assert.h>
+#include <time.h>
 
 char **slave_addresses;
 
@@ -27,6 +28,18 @@ typedef struct coord_thread_args {
 
 void *init_coordinator_thread(void *coord_args);
 query_result **results;
+
+int kill_random_slave(int num_slaves) {
+    srand(time(NULL));
+    int death_index = rand() % num_slaves;
+    printf("Killing slave %d\n", death_index);
+    CLIENT *cl = clnt_create(slave_addresses[death_index],
+        KILL_SLAVE, KILL_SLAVE_V1, "tcp");
+    if (cl == NULL) return -1;
+    int *res = kill_order_1(0, cl);
+    clnt_destroy(cl);
+    return 0;
+}
 
 
 /**

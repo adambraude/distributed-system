@@ -1,4 +1,7 @@
-# List of slaves
+# List of slaves (Docker containers)
+# Master ip = 172.17.0.2
+# A t or T is a terminating character: parser starts at top and exits when
+# one is read
 172.17.0.3
 172.17.0.4
 172.17.0.5

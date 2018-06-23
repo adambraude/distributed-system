@@ -124,12 +124,12 @@ int main(int argc, char *argv[])
         }
     }
     int msq_id = msgget(MSQ_KEY, MSQ_PERMISSIONS | IPC_CREAT), rc, qnum = 0;
-    int slave_death_inst = 500; /* at query 500, kill a slave */
+    int slave_death_inst = FT_KILL_Q;
     bool killed = false;
     struct msgbuf *request;
     struct msqid_ds buf;
     u_int64_t pre_kill_tot = 0, post_kill_tot = 0;
-    while (true) {
+    while (qnum < FT_NUM_QUERIES) {
         msgctl(msq_id, IPC_STAT, &buf);
         if (qnum == slave_death_inst) {
             kill_random_slave(num_slaves);

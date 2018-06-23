@@ -1,2 +1,0 @@
-Compiling bitmap vector utilities
-Compiling Centralized Master

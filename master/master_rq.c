@@ -78,7 +78,7 @@ query_result *rq_range_root(rq_range_root_args *query)
         rq_pipe_args *head_args = pipe_args;
         int j;
         for (j = 0; j < num_nodes; j++) {
-            pipe_args->machine_addr = slave_addresses[range_array[array_index++]];
+            pipe_args->machine_no = range_array[array_index++];
             pipe_args->vec_id = range_array[array_index++];
             pipe_args->op = '|';
             if (j < num_nodes - 1) {
@@ -174,11 +174,11 @@ char *machine_failure_msg(char *machine_name)
 void *init_coordinator_thread(void *coord_args) {
     coord_thread_args *args = (coord_thread_args *) coord_args;
 
-    CLIENT *clnt = clnt_create(args->args->machine_addr,
+    CLIENT *clnt = clnt_create(slave_addresses[args->args->machine_no],
         REMOTE_QUERY_PIPE, REMOTE_QUERY_PIPE_V1, "tcp");
 
     if (clnt == NULL) {
-        clnt_pcreateerror(args->args->machine_addr);
+        clnt_pcreateerror(slave_addresses[args->args->machine_no]);
     }
     /* give the request a time-to-live */
     struct timeval tv;
@@ -191,7 +191,7 @@ void *init_coordinator_thread(void *coord_args) {
         /* Report that this machine failed */
         res = (query_result *) malloc(sizeof(query_result));
         res->exit_code = EXIT_FAILURE;
-        res->error_message = machine_failure_msg(args->args->machine_addr);
+        res->error_message = machine_failure_msg(slave_addresses[args->args->machine_no]);
     }
     results[args->query_result_index] = res;
     clnt_destroy(clnt);

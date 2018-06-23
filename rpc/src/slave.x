@@ -15,33 +15,15 @@
 struct rq_pipe_args {
     unsigned int vec_id;
     char op;
-    string machine_addr<16>; /* ip address, max 15-chars + null terminator. */
+    int machine_no;
     struct rq_pipe_args *next;
 };
 
 struct query_result {
     unsigned hyper int vector<>;
     unsigned int exit_code;
-    unsigned int failed_machine_id;
     string error_message<128>;
 };
-
-/*
-struct btree_query_args {
-    struct btree_query_args* recur_query_list;
-    unsigned int recur_query_list_len;
-    unsigned int local_vectors<>;
-    char local_ops<>;
-    char subquery_ops<>;
-    string this_machine_address<32>;
-};
-
-program BTREE_QUERY_PIPE {
-    version BTREE_QUERY_PIPE_V1 {
-        query_result BTREE_QUERY(btree_query_args) = 1;
-    } = 1;
-} = 0x80;
-*/
 
 program REMOTE_QUERY_PIPE {
     version REMOTE_QUERY_PIPE_V1 {

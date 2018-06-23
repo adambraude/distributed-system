@@ -6,8 +6,6 @@
 #include "slave.h"
 #include "../rpc/vote.h"
 
-//#include "../master/slavelist.h"
-
 #include "../../bitmap-engine/BitmapEngine/src/seg-util/SegUtil.h"
 #include "../../bitmap-engine/BitmapEngine/src/wah/WAHQuery.h"
 
@@ -25,7 +23,7 @@
 
 char **slave_addresses = NULL;
 
-#define SLAVE_DEBUG false
+#define SLAVE_DEBUG true
 
 query_result *get_vector(u_int vec_id)
 {
@@ -65,7 +63,7 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
     /* Recursive Query */
     else {
         /* process vectors on this machine */
-        while (!strcmp(query.next->machine_addr, slave_addresses[slave_id])) {
+        while (query.next->machine_no == slave_id) {
             next_result = get_vector(query.next->vec_id);
             u_int result_len = 0;
             u_int v_len = max(this_result->vector.vector_len,
@@ -112,12 +110,12 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
                 sizeof(u_int64_t) * result_len);
             this_result->vector.vector_len = result_len;
         }
-        char *host = query.next->machine_addr;
+        int host = query.next->machine_no;
         CLIENT *client;
-        client = clnt_create(host,
+        client = clnt_create(slave_addresses[host],
             REMOTE_QUERY_PIPE, REMOTE_QUERY_PIPE_V1, "tcp");
         if (client == NULL) {
-            clnt_pcreateerror(host);
+            clnt_pcreateerror(slave_addresses[host]);
             exit_code = EXIT_FAILURE;
         }
         else {
@@ -127,13 +125,13 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
             tv.tv_usec = 0;
             clnt_control(client, CLSET_TIMEOUT, &tv);
             if (SLAVE_DEBUG)
-                printf("RPCing %s, vec %u\n", query.next->machine_addr, query.next->vec_id);
+                printf("RPCing %s, vec %u\n", slave_addresses[query.next->machine_no], query.next->vec_id);
             next_result = rq_pipe_1(*(query.next), client);
             if (next_result == NULL) {
                 clnt_perror(client, "Recursive pipe call failed");
                 this_result->exit_code = EXIT_FAILURE;
                 this_result->error_message =
-                    machine_failure_msg(query.next->machine_addr);
+                    machine_failure_msg(slave_addresses[query.next->machine_no]);
                 return this_result;
             }
             clnt_destroy(client);
@@ -270,7 +268,6 @@ int *send_vec_1_svc(copy_vector_args copy_args, struct svc_req *req)
     if (SLAVE_DEBUG)
         printf("Sending vector %u to %s\n", copy_args.vec_id, copy_args.destination_addr);
     result = *commit_vec_1(args, cl);
-    puts("Sent");
     free(qres);
     return &result;
 }

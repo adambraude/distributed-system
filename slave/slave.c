@@ -21,8 +21,11 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <string.h>
+#include <stdbool.h>
 
 char **slave_addresses = NULL;
+
+#define SLAVE_DEBUG false
 
 query_result *get_vector(u_int vec_id)
 {
@@ -123,7 +126,8 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
             tv.tv_sec = TIME_TO_VOTE;
             tv.tv_usec = 0;
             clnt_control(client, CLSET_TIMEOUT, &tv);
-            printf("RPCing %s, vec %u\n", query.next->machine_addr, query.next->vec_id);
+            if (SLAVE_DEBUG)
+                printf("RPCing %s, vec %u\n", query.next->machine_addr, query.next->vec_id);
             next_result = rq_pipe_1(*(query.next), client);
             if (next_result == NULL) {
                 clnt_perror(client, "Recursive pipe call failed");
@@ -132,14 +136,14 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
                     machine_failure_msg(query.next->machine_addr);
                 return this_result;
             }
-            puts("Call succeeded");
             clnt_destroy(client);
         }
     }
 
     /* Something went wrong with the recursive call. */
     if (next_result->exit_code != EXIT_SUCCESS) {
-        printf("Result response: %s", next_result->error_message);
+        if (SLAVE_DEBUG)
+            printf("Result response: %s", next_result->error_message);
         free(this_result);
         return next_result;
     }
@@ -208,7 +212,8 @@ int *commit_vec_1_svc(struct commit_vec_args args, struct svc_req *req)
 {
     FILE *fp;
     char filename_buf[128];
-    printf("Recieved vector %d\n", args.vec_id);
+    if (SLAVE_DEBUG)
+        printf("Recieved vector %d\n", args.vec_id);
     snprintf(filename_buf, 128, "v_%d.dat", args.vec_id); // TODO: function to get vector filename
     fp = fopen(filename_buf, "wb");
     char buffer[1024];
@@ -237,8 +242,9 @@ int *init_slave_1_svc(init_slave_args args, struct svc_req *req)
         result = EXIT_FAILURE;
         return &result;
     }
-    printf("On machine %s, assigned slave number %d\n",
-        slave_addresses[slave_id], slave_id);
+    if (SLAVE_DEBUG)
+        printf("On machine %s, assigned slave number %d\n",
+            slave_addresses[slave_id], slave_id);
     result = EXIT_SUCCESS;
     return &result;
 }
@@ -261,7 +267,8 @@ int *send_vec_1_svc(copy_vector_args copy_args, struct svc_req *req)
     args.vec_id = copy_args.vec_id;
     query_result *qres = get_vector(copy_args.vec_id);
     memcpy(&args.vector, &qres->vector, sizeof(qres->vector));
-    printf("Sending vector %u to %s\n", copy_args.vec_id, copy_args.destination_addr);
+    if (SLAVE_DEBUG)
+        printf("Sending vector %u to %s\n", copy_args.vec_id, copy_args.destination_addr);
     result = *commit_vec_1(args, cl);
     puts("Sent");
     free(qres);

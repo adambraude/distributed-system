@@ -20,7 +20,7 @@
 #include "../util/ds_util.h"
 #include "../experiments/fault_tolerance.h"
 
-#define MS_DEBUG false
+#define DEBUG false
 
 /* variables for use in all master functions */
 slave_ll *slavelist;
@@ -151,7 +151,8 @@ int main(int argc, char *argv[])
             }
 
             if (request->mtype == mtype_put) {
-                printf("Putting vector %d\n", request->vector.vec_id);
+                if (DEBUG)
+                    printf("Putting vector %d\n", request->vector.vec_id);
                 slave **commit_slaves =
                     get_machines_for_vector(request->vector.vec_id, true);
                 int commit_res = commit_vector(request->vector.vec_id, request->vector.vec,
@@ -188,8 +189,9 @@ int main(int argc, char *argv[])
                 // TODO write this to a file
                 if (killed) post_kill_tot += dt;
                 else pre_kill_tot += dt;
-                printf("%ld: Range query %d took %llu ms\n",
-                    end.tv_sec, ++qnum, dt);
+                if (DEBUG)
+                    printf("%ld: Range query %d took %llu ms\n",
+                        end.tv_sec, ++qnum, dt);
 
             }
             else if (request->mtype == mtype_point_query) {

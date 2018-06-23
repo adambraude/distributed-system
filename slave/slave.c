@@ -23,7 +23,7 @@
 
 char **slave_addresses = NULL;
 
-#define SLAVE_DEBUG true
+#define SLAVE_DEBUG false
 
 query_result *get_vector(u_int vec_id)
 {
@@ -65,6 +65,10 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
         /* process vectors on this machine */
         while (query.next->machine_no == slave_id) {
             next_result = get_vector(query.next->vec_id);
+            if (next_result->exit_code == EXIT_FAILURE) {
+                printf("Error: vector %u not found\n", query.next->vec_id);
+                return next_result;
+            }
             u_int result_len = 0;
             u_int v_len = max(this_result->vector.vector_len,
                 next_result->vector.vector_len);

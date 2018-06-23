@@ -2,6 +2,7 @@
 #include "../ipc/messages.h"
 #include "../types/types.h"
 #include "../bitmap-vector/read_vec.h"
+#include "../experiments/fault_tolerance.h"
 
 #include <errno.h>
 #include <stdbool.h>
@@ -52,37 +53,34 @@ void test_put_vec_len_2(int queue_id, int vec_id, unsigned long long vec, unsign
 int main(int argc, char *argv[])
 {
     if (argc < 2) {
-        printf("Usage: dbms test-no\n");
         return 1;
     }
-    printf("Starting DBMS...\n");
 
     /* SPAWN MASTER */
 
     bool master_exists = false;
     pid_t master_pid = -1;
-    if (!master_exists) switch (master_pid = fork()) {
-        case -1:
-            perror("fork");
-            exit(EXIT_FAILURE);
-        case 0:
-            printf("Starting master\n");
-            char *argv[3] = {MASTER_EXECUTABLE, REPLICATION_FACTOR, NULL};
-            int master_exit_status = execv(MASTER_EXECUTABLE, argv);
-            exit(master_exit_status);
-        default:
-            master_exists = true;
+    if (!master_exists) {
+        const char *master_args[3];
+        switch (master_pid = fork()) {
+            case -1:
+                perror("fork");
+                exit(EXIT_FAILURE);
+            case 0:
+                master_args[0] = MASTER_EXECUTABLE;
+                master_args[1] = REPLICATION_FACTOR;
+                master_args[2] = NULL;
+                int master_exit_status = execv(MASTER_EXECUTABLE, master_args);
+                exit(master_exit_status);
+            default:
+                master_exists = true;
+       }
     }
 
     /* SETUP IPC */
 
     /* Create message queue. */
     int msq_id = msgget(MSQ_KEY, MSQ_PERMISSIONS | IPC_CREAT);
-
-    /* Go to sleep for a bit, to wait for everything to start */
-    //puts("DBMS sleeping");
-    //sleep(10); // XXX empirically determined?
-    //puts("DBMS: woke up");
 
     /* TESTS */
     int test_no = atoi(argv[1]);
@@ -132,8 +130,24 @@ int main(int argc, char *argv[])
         char range[] = "R:[0,1]";
         range_query(msq_id, range);
     }
+    else if (test_no == TPCORG_C_TEST) {
+
+        int num_vecs = FT_NUM_VEC, i;
+        char buf[64];
+        for (i = 0; i < num_vecs; i++) {
+            snprintf(buf, 64, "../tst_data/tpc/vec/v_%d.dat", i);
+            put_vector(msq_id, i, read_vector(buf));
+        }
+        /* read queries */
+        FILE *fp = fopen("../tst_data/tpc/qs/query_lt128.dat", "r");
+        char *line = NULL;
+        size_t n = 0;
+        int qnum = 0;
+        while (getline(&line, &n, fp) != -1 && qnum++ < FT_NUM_QUERIES) {
+            range_query(msq_id, line);
+        }
+    }
     else {
-        printf("Invalid test number\n");
         return_val = 1;
     }
 
@@ -142,7 +156,7 @@ int main(int argc, char *argv[])
     int master_result = 0;
     /* Reap master. */
     wait(&master_result);
-    printf("Master returned: %i\n", master_result);
+    puts("DBMS: Master process killed, closing");
 
     /* Destroy message queue. */
     msgctl(msq_id, IPC_RMID, NULL);
@@ -160,9 +174,7 @@ int put_vector(int queue_id, vec_id_t vec_id, vec_t *vec)
     put->vector = *av;
 
     msgsnd(queue_id, put, sizeof(msgbuf), 0);
-    // free(vec);
-    // free(av);
-    // free(put);
+
     return EXIT_SUCCESS;
 }
 
@@ -227,7 +239,6 @@ int range_query(int queue_id, char *query_str)
 
    contents->num_ranges = num_ranges;
    range->range_query = *contents;
-   //printf("Sending a message to queue\n");
    msgsnd(queue_id, range, sizeof(msgbuf), 0);
    free(contents);
    free(ops);

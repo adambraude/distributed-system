@@ -1,37 +1,46 @@
-#include "master.h"
-#include "tpc_master.h"
-#include "master_rq.h"
-#include "slavelist.h"
-#include "../consistent-hash/ring/src/tree_map.h"
-#include "../types/types.h"
-
+#include <assert.h>
 #include <errno.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <assert.h>
+
+#include <time.h>
 
 #include <sys/ipc.h>
 #include <sys/types.h>
+
+#include "master.h"
+#include "master_rq.h"
+#include "tpc_master.h"
+#include "../bitmap-vector/read_vec.h"
+#include "../consistent-hash/ring/src/tree_map.h"
+#include "../types/types.h"
+#include "../util/ds_util.h"
+#include "../experiments/fault_tolerance.h"
 
 #define MS_DEBUG false
 
 /* variables for use in all master functions */
 slave_ll *slavelist;
-u_int slave_id_counter = 1;
-u_int partition_t;
-u_int query_plan_t;
-int num_slaves;
-slave *dead_slave; /* slave presumed dead, waiting to be reawakened (assumes 1 dead slave at a time) */
+u_int slave_id_counter = 0;
+partition_t partition;
+query_plan_t query_plan;
+u_int num_slaves;
+
+/*
+ * slave presumed dead,
+ * waiting to be reawakened (assumes 1 dead slave at a time)
+ */
+slave *dead_slave;
 int separation;
 
 /* Ring CH variables */
 rbt_ptr chash_table;
 
 /* static partition variables */
-int *partition_scale_1, *partition_scale_2; // partitions and backups
+int *partition_scale_1, *partition_scale_2; /* partitions and backups */
 u_int num_keys; /* e.g., value of largest known key, plus 1 */
 
 u_int max_vector_len;
@@ -43,65 +52,46 @@ u_int max_vector_len;
  */
 int main(int argc, char *argv[])
 {
-    // XXX: running with defaults for now (r = 3, and hardcoded slave addresses)
-    /*
-    if (argc < 3) {
-        printf("Usage: -p partition_type -ml max_vector_len [-k num_keys] [-r repl_factor] -s slave_addr1 [... slave_addrn]\n");
+    int i, j;
+    partition = RING_CH;
+    query_plan = STARFISH;
+
+    /* Holder for a dead slave */
+    dead_slave = NULL;
+
+    int c;
+    num_slaves = fill_slave_arr(SLAVELIST_PATH, &slave_addresses);
+    if (num_slaves == -1) {
         return 1;
     }
-    */
-    /* Connect to message queue. */
-    partition_t = RING_CH;
-    query_plan_t = STARFISH;
-    int msq_id = msgget(MSQ_KEY, MSQ_PERMISSIONS | IPC_CREAT);
-    /* Container for messages. */
-    struct msgbuf *request;
-    struct msqid_ds buf;
-    int rc;
+    if (num_slaves == 1) replication_factor = 1;
 
-    // SETUP
-
-    /* setup values, acquired from slavelist.h */
-    num_slaves = NUM_SLAVES;
-    // index in slave list will be the machine ID (0 is master)
+    /* index in slave list will be the machine ID (0 is master) */
     slavelist = (slave_ll *) malloc(sizeof(slave_ll));
     slave_ll *head = slavelist;
-    if (num_slaves == 1) replication_factor = 1;
-    int i;
-    for (i = 1; i <= num_slaves; i++) {
-        slave *s = new_slave(SLAVE_ADDR[i]); // TODO: when we use CLI args, change this array
-        if (setup_slave(s)) { // could not connect
-            printf("MASTER: Could not register machine %s\n",
-                SLAVE_ADDR[i]);
-            // dealloc(slavelist)
-            //exit(1);
-            //return EXIT_FAILURE;
-            // s->is_alive = false;
-            // dead_slave = s;
-            // num_living_slaves--;
-        }
-        else {
+    for (i = 0; i < num_slaves; i++) {
+        slave *s = new_slave(slave_addresses[i]);
+        if (!setup_slave(s)) { /* connected to slave? */
             slavelist->slave_node = s;
-            printf("Added slave %s\n", SLAVE_ADDR[i]);
-            /* if there is another slave to add to the linked-list,
-             * allocate a node for it */
             if (i < num_slaves - 1) {
                 slavelist->next = (slave_ll *) malloc(sizeof(slave_ll));
                 slavelist = slavelist->next;
             }
         }
     }
+    /* terminate linked-list */
     slavelist->next = NULL;
     slavelist = head;
+
     /*
      * setup partitions
      */
-    switch (partition_t) {
+    switch (partition) {
         case RING_CH: {
             chash_table = new_rbt();
             slave_ll *head = slavelist;
             while (head != NULL) {
-                struct cache *cptr = (struct cache*) malloc(sizeof(struct cache));
+                cache *cptr = (cache*) malloc(sizeof(cache));
                 cptr->id = head->slave_node->id;
                 cptr->cache_name = head->slave_node->address;
                 cptr->replication_factor = 1;
@@ -114,7 +104,7 @@ int main(int argc, char *argv[])
         }
 
         case JUMP_CH: {
-            // TODO setup jump
+            /* TODO setup jump */
             break;
         }
 
@@ -133,13 +123,21 @@ int main(int argc, char *argv[])
             break;
         }
     }
-
-    /* message receipt loop */
-    while (true) {
+    int msq_id = msgget(MSQ_KEY, MSQ_PERMISSIONS | IPC_CREAT), rc, qnum = 0;
+    int slave_death_inst = FT_KILL_Q;
+    bool killed = false;
+    struct msgbuf *request;
+    struct msqid_ds buf;
+    u_int64_t pre_kill_tot = 0, post_kill_tot = 0;
+    while (qnum < FT_NUM_QUERIES) {
         msgctl(msq_id, IPC_STAT, &buf);
-        //puts("beating heart");
-        if (heartbeat()) return 1; // TODO: this can be called elsewhere
+        if (qnum == slave_death_inst) {
+            kill_random_slave(num_slaves);
+            killed = true;
+        }
+        heartbeat(); // TODO: this can be called elsewhere
         if (buf.msg_qnum > 0) {
+
             request = (struct msgbuf *) malloc(sizeof(msgbuf));
             /* Grab from queue. */
             // TODO fill in messages
@@ -153,40 +151,46 @@ int main(int argc, char *argv[])
             }
 
             if (request->mtype == mtype_put) {
-                slave *commit_slaves[replication_factor];
-                u_int *slave_ids =
+                printf("Putting vector %d\n", request->vector.vec_id);
+                slave **commit_slaves =
                     get_machines_for_vector(request->vector.vec_id, true);
-                slave_ll *head = slavelist;
-                int cs_index = 0;
-                while (head != NULL) {
-                    if (head->slave_node->id == slave_ids[0] ||
-                        head->slave_node->id == slave_ids[1])
-                        commit_slaves[cs_index++] = head->slave_node;
-                    if (cs_index == replication_factor) break;
-                    head = head->next;
-                }
                 int commit_res = commit_vector(request->vector.vec_id, request->vector.vec,
                     commit_slaves, replication_factor);
-                if (commit_res) {
+                if (commit_res)
                     heartbeat();
-
-                }
             }
             else if (request->mtype == mtype_range_query) {
                 range_query_contents contents = request->range_query;
-                switch (query_plan_t) { // TODO: fill in cases
+                struct timespec start, end;
+                clock_gettime(CLOCK_REALTIME, &start);
+                switch (query_plan) { // TODO: fill in cases
                     case STARFISH: {
                         while (starfish(contents))
                             heartbeat();
                         break;
                     }
-                    case UNISTAR:
-                    case MULTISTAR:
+                    case UNISTAR: {
+
+                    }
+                    case MULTISTAR: {
+
+                    }
                     case ITER_PRIM: {
-                        //init_btree_range_query(contents); // TODO (for conference version)
-                        break;
+
+                    }
+                    default: {
+
                     }
                 }
+                clock_gettime(CLOCK_REALTIME, &end);
+                u_int64_t dt = (end.tv_sec - start.tv_sec) * 1000000
+                    + (end.tv_nsec - start.tv_nsec) / 1000;
+                // TODO write this to a file
+                if (killed) post_kill_tot += dt;
+                else pre_kill_tot += dt;
+                printf("%ld: Range query %d took %llu ms\n",
+                    end.tv_sec, ++qnum, dt);
+
             }
             else if (request->mtype == mtype_point_query) {
                 /* TODO: Call Jahrme function here */
@@ -194,18 +198,22 @@ int main(int argc, char *argv[])
             free(request);
         }
     }
+    printf("Avg time prekill: %f ms\n", ((float) pre_kill_tot) / FT_PREKILL_Q);
+    printf("Avg time postkill: %f ms\n", ((float) post_kill_tot) / FT_POSTKILL_Q);
 
     /* deallocation */
     while (slavelist != NULL) {
+        free(slavelist->slave_node->address);
         free(slavelist->slave_node);
         slave_ll *temp = slavelist->next;
         free(slavelist);
         slavelist = temp;
     }
-
+    if (dead_slave != NULL) {
+        free(dead_slave->address);
+        free(dead_slave);
+    }
 }
-
-
 
 int starfish(range_query_contents contents)
 {
@@ -222,6 +230,8 @@ int starfish(range_query_contents contents)
 
     /* this array will eventually include data for the coordinator
        slave's RPC  as described in the distributed system wiki. */
+
+    /* NB: freed in master_rq */
     u_int *range_array = (u_int *) malloc(sizeof(u_int) * num_ints_needed);
     int array_index = 0;
     bool flip = true;
@@ -234,16 +244,17 @@ int starfish(range_query_contents contents)
         range_array[array_index++] = range_len;
         u_int **machine_vec_ptrs = (u_int **) malloc(sizeof(int *) * range_len);
         for (j = range[0]; j <= range[1]; j++) {
-            u_int *tuple = get_machines_for_vector(j, false);
+            slave **tuple = get_machines_for_vector(j, false);
             if (flip) {
-                u_int temp = tuple[0];
+                slave *temp = tuple[0];
                 tuple[0] = tuple[1];
                 tuple[1] = temp;
             }
             int mvp_addr = j - range[0];
             machine_vec_ptrs[mvp_addr] = (u_int *) malloc(sizeof(u_int) * 2);
-            machine_vec_ptrs[mvp_addr][0] = tuple[0];
+            machine_vec_ptrs[mvp_addr][0] = tuple[0]->id;
             machine_vec_ptrs[mvp_addr][1] = j;
+            free(tuple);
         }
 
         qsort(machine_vec_ptrs, range_len,
@@ -280,16 +291,17 @@ int heartbeat()
         int id = head->slave_node->id;
         head = head->next;
         if (!is_alive(addr)) {
-            printf("Machine %s failed\n", addr);
             remove_slave(id);
             if (num_slaves == 0) {
-                puts("MASTER: there are no more slaves");
                 return 1;
             }
+            struct timespec start, end;
+            clock_gettime(CLOCK_REALTIME, &start);
             reallocate();
-        }
-        else {
-            if (MS_DEBUG) printf("%s is alive!\n", addr);
+            clock_gettime(CLOCK_REALTIME, &end);
+            printf("Reallocation time = %ld ms\n",
+                (end.tv_sec - start.tv_sec) * 1000000
+                + (end.tv_nsec - start.tv_nsec) / 1000);
         }
     }
     return 0;
@@ -305,20 +317,16 @@ int remove_slave(u_int slave_id)
     /* Look for the address of the node to remove... */
     while ((*head)->slave_node->id != slave_id)
         head = &(*head)->next;
-    dead_slave = *head;
+    dead_slave = (*head)->slave_node;
     /* ...and just remove it (Torvalds-style) */
     *head = (*head)->next;
-    num_slaves--;
-    if (num_slaves == 1) replication_factor = 1;
+    if (--num_slaves == 1) replication_factor = 1;
     return EXIT_SUCCESS;
 }
 
 void reallocate()
 {
-    // take the dead slave, reallocate its vectors to other machines
-    // assumes that none of the vectors die in the process
-    printf("Something died\n");
-    switch (partition_t) {
+    switch (partition) {
         case RING_CH: {
             u_int pred_id = ring_get_pred_id(chash_table, dead_slave->id);
             u_int succ_id = ring_get_succ_id(chash_table, dead_slave->id);
@@ -327,33 +335,42 @@ void reallocate()
             slave *pred, *succ, *sucsuc;
             // TODO could skip this step by storing the nodes in the tree
             // instead of having to find them this way
-            while (head != NULL) {
+            for (; head != NULL; head = head->next) {
                 if (head->slave_node->id == pred_id) pred = head->slave_node;
                 if (head->slave_node->id == succ_id) succ = head->slave_node;
-                if (head->slave_node->id == sucsuc_id) sucsuc = head->slave_node;
-                head = head->next;
+                if (head->slave_node->id == sucsuc_id)
+                    sucsuc = head->slave_node;
             }
-            // TODO: have send_vector take an *integer* instead, and get the
-            // address out of the slavelist array
-            // transfer predecessor's vectors to dead node's successor
+
             slave_vector *vec = pred->primary_vector_head;
             if (pred != succ) {
-                while (vec != NULL) {
-                    send_vector(pred, vec->id, succ); // TODO: code this RPC
-                    vec = vec->next;
+                for (; vec != NULL; vec = vec->next) {
+                    send_vector(pred, vec->id, succ);
                 }
             }
+
             vec = dead_slave->primary_vector_head;
             // transfer successor's nodes to its successor as its backup
-            while (vec != NULL) {
-                send_vector(dead_slave, vec->id, sucsuc);
-                vec = vec->next;
+            for (; vec != NULL; vec = vec->next) {
+                send_vector(succ, vec->id, sucsuc);
             }
+
             // join dead node's linked list with the successor
-            succ->primary_vector_tail->next = dead_slave->primary_vector_head;
+            dead_slave->primary_vector_head->next = succ->primary_vector_tail;
             succ->primary_vector_tail = dead_slave->primary_vector_tail;
 
             delete_entry(chash_table, dead_slave->id);
+            printf("Reallocated after %s died\n",
+                slave_addresses[dead_slave->id]);
+            break;
+        }
+
+        case JUMP_CH: {
+            break;
+        }
+
+        case STATIC_PARTITION: {
+            break;
         }
     }
 }
@@ -363,11 +380,11 @@ void reallocate()
  * that t = (m1, m2) and m1 != m2 if there at least 2 slaves available.
  * If this is a *new* vector, updating should be true, false otherwise.
  */
-u_int *get_machines_for_vector(vec_id_t vec_id, bool updating)
+slave **get_machines_for_vector(vec_id_t vec_id, bool updating)
 {
-    switch (partition_t) {
+    switch (partition) {
         case RING_CH: {
-            u_int *tr = ring_get_machines_for_vector(chash_table, vec_id);
+            long long *tr = ring_get_machines_for_vector(chash_table, vec_id);
             if (updating) {
                 // update this slave's primary vectors
                 slave_ll *head = slavelist;
@@ -388,7 +405,16 @@ u_int *get_machines_for_vector(vec_id_t vec_id, bool updating)
                     vec->next = NULL;
                 }
             }
-            return tr;
+            slave **tr_slaves = (slave **) malloc(sizeof(slave*) * replication_factor);
+            int i;
+            for (i = 0; i < replication_factor; i++) {
+                slave_ll *node = slavelist;
+                for (; node != NULL; node = node->next) {
+                    if (node->slave_node->id == tr[i])
+                        tr_slaves[i] = node->slave_node;
+                }
+            }
+            return tr_slaves;
         }
 
         case JUMP_CH: {
@@ -403,7 +429,8 @@ u_int *get_machines_for_vector(vec_id_t vec_id, bool updating)
             assert(index >= 0 && index < num_slaves);
             machines[0] = partition_scale_1[index];
             machines[1] = partition_scale_2[index];
-            return machines;
+            // return machines;
+            return NULL;
         }
 
         default: {
@@ -439,7 +466,7 @@ slave *new_slave(char *address)
 {
     slave *s = (slave *) malloc(sizeof(slave));
     s->id = get_new_slave_id();
-    s->address = malloc(sizeof(address));
+    s->address = malloc(strlen(address) + 1);
     strcpy(s->address, address);
     s->is_alive = true;
     s->primary_vector_head = NULL;

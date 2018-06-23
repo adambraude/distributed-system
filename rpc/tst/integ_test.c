@@ -28,7 +28,6 @@ void test_2pc_procedure(void)
     int status = 0;
     int chpid = fork();
     if (chpid < 0) {
-        printf("Fork failed\n");
         return;
     }
     else if (chpid == 0) {
@@ -36,6 +35,5 @@ void test_2pc_procedure(void)
     }
     else {
         wait(&status);
-        printf("Two-phase commit completed.\n");
     }
 }

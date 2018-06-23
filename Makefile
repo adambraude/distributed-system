@@ -2,9 +2,7 @@ BIN := bin
 RPC_BIN := rpc/bin
 
 CFLAGS := -Wall
-# Ignore incompatible-pointer-types warnings from `rpcgen`
-# Ignore unused-command-line-argument stemming from "'linker' input unused"
-CIGNORE := -Wno-incompatible-pointer-types -Wno-unused-command-line-argument
+CIGNORE := -Wno-incompatible-pointer-types -Wno-unused-variable
 CC := gcc $(CFLAGS) $(CIGNORE)
 
 all: clean .master .slave .dbms
@@ -22,7 +20,7 @@ $(BIN)/tree_map.o:
 	@echo "Compiling RPC modules"
 	@cd rpc && make
 
-.master: .slave .rpc $(BIN)/tree_map.o
+.master: .slave .rpc .bitmap-vector $(BIN)/tree_map.o .ds-util
 	@echo "Compiling Master"
 	@$(CC) -c -o $(BIN)/master_rq.o \
 		master/master_rq.c
@@ -38,8 +36,24 @@ $(BIN)/tree_map.o:
 		$(BIN)/master_tpc.o \
 		$(BIN)/WAHQuery.o \
 		$(BIN)/SegUtil.o \
+		$(BIN)/read_vec.o \
+		$(BIN)/slavelist.o \
 		master/master.c \
-		-lssl -lcrypto -lm -lpthread -lpython2.7 # TODO: make `MASTER_FLAGS` target
+		-lssl -lpthread -lcrypto -lm #-lpython2.7 # TODO: make `MASTER_FLAGS` target
+
+.master_cent: .bitmap-vector
+	@echo "Compiling Centralized Master"
+	@$(CC) -c -o $(BIN)/master_rq_cent.o \
+		master/master_rq_cent.c
+	@$(CC) -o $(BIN)/master_cent \
+		$(BIN)/master_rq_cent.o \
+		$(BIN)/WAHQuery.o \
+	$(BIN)/SegUtil.o \
+		$(BIN)/read_vec.o \
+	master/master_cent.c -lpthread
+
+master_cent: .master_cent
+	@cd bin && ./master_cent
 
 .engine:
 	@echo "Compiling Bitmap Engine Query function"
@@ -48,7 +62,7 @@ $(BIN)/tree_map.o:
 	@$(CC) -c -o $(BIN)/SegUtil.o \
 		../bitmap-engine/BitmapEngine/src/seg-util/SegUtil.c
 
-.slave: .rpc .engine .bitmap-vector
+.slave: .rpc .engine .bitmap-vector .ds-util
 	@echo "Compiling Slave"
 	@$(CC) -o $(BIN)/slave \
 		$(RPC_BIN)/slave_clnt.o \
@@ -57,8 +71,9 @@ $(BIN)/tree_map.o:
 		$(BIN)/WAHQuery.o \
 		$(BIN)/SegUtil.o \
 		$(BIN)/read_vec.o \
+		$(BIN)/slavelist.o \
 		slave/slave.c \
-		-lpthread -lm
+		-lm
 
 .dbms: .bitmap-vector
 	@echo "Compiling DBMS"
@@ -70,6 +85,11 @@ $(BIN)/tree_map.o:
 	@echo "Compiling bitmap vector utilities"
 	@$(CC) -c -o $(BIN)/read_vec.o \
 		bitmap-vector/read_vec.c
+
+.ds-util:
+	@echo "Compiling distributed system utilities"
+	@$(CC) -c -o $(BIN)/slavelist.o \
+		util/slavelist.c
 
 .start_dbms:
 	@$(bin)/dbms
@@ -86,3 +106,7 @@ vd_test: all
 	@echo "Creating test data..."
 	@cd tst_data/rep-votes && python3 convert_voting_data.py
 	@cd $(BIN) && ./dbms 1
+
+# TPC Benchmarking Data Test
+tpc_test: all
+	@cd $(BIN) && ./dbms 3

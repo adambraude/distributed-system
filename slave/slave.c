@@ -3,9 +3,10 @@
  */
 
 #include "../rpc/gen/slave.h"
+#include "slave.h"
 #include "../rpc/vote.h"
 
-#include "../master/slavelist.h"
+//#include "../master/slavelist.h"
 
 #include "../../bitmap-engine/BitmapEngine/src/seg-util/SegUtil.h"
 #include "../../bitmap-engine/BitmapEngine/src/wah/WAHQuery.h"
@@ -21,12 +22,7 @@
 #include <unistd.h>
 #include <string.h>
 
-char *machine_failure_msg(char *);
-unsigned int slave_id;
-
-char *machine_failure_msg(char *);
-
-query_result *get_vector(u_int);
+char **slave_addresses = NULL;
 
 query_result *get_vector(u_int vec_id)
 {
@@ -40,7 +36,7 @@ query_result *get_vector(u_int vec_id)
         res->vector.vector_len = 0;
         res->exit_code = EXIT_FAILURE;
         char buf[128];
-        snprintf(buf, 128, "Error: could not locate vector %d on machine %s", vec_id, SLAVE_ADDR[slave_id]); // TODO: also machine name?
+        snprintf(buf, 128, "Error: could not locate vector %d on machine %s\n", vec_id, slave_addresses[slave_id]); // TODO: also machine name?
         res->error_message = buf;
         return res;
     }
@@ -54,7 +50,6 @@ query_result *get_vector(u_int vec_id)
 
 query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
 {
-    printf("%s: In Pipe 1 svc\n", SLAVE_ADDR[slave_id]);
     query_result *this_result;
     query_result *next_result = NULL;
 
@@ -66,15 +61,14 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
         return this_result;
     /* Recursive Query */
     else {
-        printf("Going to visit %s\n", query.next->machine_addr);
-        while (!strcmp(query.next->machine_addr, SLAVE_ADDR[slave_id])) { // TODO: pass slave ID, so that we don't have to pass address, and save comparison time,
+        /* process vectors on this machine */
+        while (!strcmp(query.next->machine_addr, slave_addresses[slave_id])) {
             next_result = get_vector(query.next->vec_id);
             u_int result_len = 0;
             u_int v_len = max(this_result->vector.vector_len,
                 next_result->vector.vector_len);
             u_int64_t result_val[v_len];
             memset(result_val, 0, v_len);
-            // TODO: move to separate function, avoiding need for copy-paste job
 
             if (query.op == '|') {
                 result_len = OR_WAH(result_val,
@@ -97,7 +91,7 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
                 return res;
             }
             query = *query.next;
-            if (query.next == NULL) {
+            if (query.next == NULL) { /* query finished */
                 query_result *res = (query_result *) malloc(sizeof(query_result));
                 res->vector.vector_len = result_len;
                 res->vector.vector_val = result_val;
@@ -107,21 +101,13 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
                 res->error_message = "";
                 return res;
             }
-            /* there are still more vectors to visit! */
+            /* there are still more vectors to grab */
             u_int64_t res_arr[result_len];
             memset(res_arr, 0, result_len * sizeof(u_int64_t));
             this_result->vector.vector_val = res_arr;
             memcpy(this_result->vector.vector_val, result_val,
                 sizeof(u_int64_t) * result_len);
             this_result->vector.vector_len = result_len;
-            /*
-            puts("Printing intermediate result");
-            int k;
-            for (k = 0; k < result_len; k++) {
-                printf("%llx\n", result_val[k]);
-            }
-            puts("Done printing");
-            */
         }
         char *host = query.next->machine_addr;
         CLIENT *client;
@@ -132,26 +118,28 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
             exit_code = EXIT_FAILURE;
         }
         else {
-            next_result = rq_pipe_1(*(query.next), client);
             /* give the request a time-to-live */
             struct timeval tv;
             tv.tv_sec = TIME_TO_VOTE;
             tv.tv_usec = 0;
             clnt_control(client, CLSET_TIMEOUT, &tv);
+            printf("RPCing %s, vec %u\n", query.next->machine_addr, query.next->vec_id);
+            next_result = rq_pipe_1(*(query.next), client);
             if (next_result == NULL) {
-                clnt_perror(client, "call failed:");
+                clnt_perror(client, "Recursive pipe call failed");
                 this_result->exit_code = EXIT_FAILURE;
                 this_result->error_message =
                     machine_failure_msg(query.next->machine_addr);
                 return this_result;
             }
-
+            puts("Call succeeded");
             clnt_destroy(client);
         }
     }
 
     /* Something went wrong with the recursive call. */
     if (next_result->exit_code != EXIT_SUCCESS) {
+        printf("Result response: %s", next_result->error_message);
         free(this_result);
         return next_result;
     }
@@ -192,7 +180,6 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
     res->exit_code = exit_code;
     res->error_message = "";
     free(this_result);
-    puts("Returning Result");
     return res;
 }
 
@@ -202,13 +189,11 @@ static int result;
 
 int *commit_msg_1_svc(int message, struct svc_req *req)
 {
-	printf("SLAVE: VOTING\n");
     int ready = 1; // test value
     if (ready) {
         result = VOTE_COMMIT;
     }
     else {
-        /* possible reasons: lack of memory, ... */
         result = VOTE_ABORT;
     }
     /* make the process run slow, to test failure */
@@ -221,9 +206,9 @@ int *commit_msg_1_svc(int message, struct svc_req *req)
 
 int *commit_vec_1_svc(struct commit_vec_args args, struct svc_req *req)
 {
-	printf("SLAVE: Putting vector %u\n", args.vec_id);
     FILE *fp;
     char filename_buf[128];
+    printf("Recieved vector %d\n", args.vec_id);
     snprintf(filename_buf, 128, "v_%d.dat", args.vec_id); // TODO: function to get vector filename
     fp = fopen(filename_buf, "wb");
     char buffer[1024];
@@ -235,7 +220,6 @@ int *commit_vec_1_svc(struct commit_vec_args args, struct svc_req *req)
     /* first element of the should be 0, to work with WAHQuery.c
      so don't bother storing it*/
     for (i = 1; i < args.vector.vector_len; i++) {
-        //printf("Vector val: %llu", args.vector.vector_val[i]);
         snprintf(line_buffer, 32, "%llx\n", args.vector.vector_val[i]);
         strcat(buffer, line_buffer);
     }
@@ -248,8 +232,14 @@ int *commit_vec_1_svc(struct commit_vec_args args, struct svc_req *req)
 int *init_slave_1_svc(init_slave_args args, struct svc_req *req)
 {
     slave_id = args.slave_id; /* assign this slave its ID */
+    free(slave_addresses);
+    if (fill_slave_arr(SLAVELIST_PATH, &slave_addresses) < 0) {
+        result = EXIT_FAILURE;
+        return &result;
+    }
+    printf("On machine %s, assigned slave number %d\n",
+        slave_addresses[slave_id], slave_id);
     result = EXIT_SUCCESS;
-    printf("Registered slave %d\n", slave_id);
     return &result;
 }
 
@@ -271,10 +261,21 @@ int *send_vec_1_svc(copy_vector_args copy_args, struct svc_req *req)
     args.vec_id = copy_args.vec_id;
     query_result *qres = get_vector(copy_args.vec_id);
     memcpy(&args.vector, &qres->vector, sizeof(qres->vector));
-    result = *commit_vec_1_svc(args, cl);
+    printf("Sending vector %u to %s\n", copy_args.vec_id, copy_args.destination_addr);
+    result = *commit_vec_1(args, cl);
+    puts("Sent");
     free(qres);
-    //free(args);
     return &result;
+}
+
+/**
+ * Make this slave die. Used for fault tolerance testing if having a slave
+ * crash at a particular point desirable.
+ */
+int *kill_order_1_svc(int arg, struct svc_req *req)
+{
+    puts("Exiting...");
+    exit(0);
 }
 
 /**

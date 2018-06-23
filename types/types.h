@@ -4,9 +4,11 @@
 #ifndef TYPES_H
 #define TYPES_H
 #define MAX_VECTOR_LEN 128
+#include <sys/types.h>
+
 typedef struct vec_t {
-    unsigned long long vector[MAX_VECTOR_LEN];
-    unsigned int vector_length;
+    u_int64_t vector[MAX_VECTOR_LEN];
+    u_int vector_length;
 } vec_t;
-typedef unsigned int vec_id_t;
+typedef u_int vec_id_t;
 #endif /* TYPES_H */

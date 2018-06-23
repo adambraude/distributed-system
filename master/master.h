@@ -4,6 +4,9 @@
 #include <stdbool.h>
 #include "../types/types.h"
 #include "../ipc/messages.h"
+#define SLAVELIST_PATH "../SLAVELIST"
+
+extern char **slave_addresses;
 
 /**
  * each slave will keep a linked list of vector IDs indicating which
@@ -27,9 +30,8 @@ typedef struct slave_ll {
     struct slave_ll *next;
 } slave_ll;
 
-/* will vary by system */
-enum {RING_CH, JUMP_CH, STATIC_PARTITION}; /* parition types */
-enum {UNISTAR, STARFISH, MULTISTAR, ITER_PRIM}; /* query plan algorithms */
+typedef enum {RING_CH, JUMP_CH, STATIC_PARTITION} partition_t; /* parition types */
+typedef enum {UNISTAR, STARFISH, MULTISTAR, ITER_PRIM} query_plan_t; /* query plan algorithms */
 /* The number of different machines a vector appears on */
 static int replication_factor = 2;
 
@@ -38,7 +40,7 @@ int setup_slave(slave*);
 slave *new_slave(char*);
 int heartbeat(void);
 bool is_alive(char *);
-unsigned int *get_machines_for_vector(unsigned int, bool);
+slave **get_machines_for_vector(unsigned int, bool);
 int send_vector(slave *, vec_id_t, slave*);
 void reallocate(void);
 int starfish(range_query_contents);

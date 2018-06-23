@@ -49,7 +49,7 @@ void insert_cache(rbt_ptr t, struct cache* cptr)
 {
     int i;
     for (i = 0; i < cptr->replication_factor; i++) {
-        rbt_insert(t, new_node(t, cptr->id, hash(cptr->id), RED));
+        rbt_insert(t, new_node(t, cptr->id, hash(cptr->id + i), RED));
     }
 }
 
@@ -59,7 +59,7 @@ cache_id *ring_get_machines_for_vector(rbt_ptr t, unsigned int vec_id)
 {
     cache_id *res = (cache_id *) malloc(sizeof(cache_id) * replication_factor);
     node_ptr primary_node = succ(t, hash(vec_id));
-    node_ptr backup_node = succ(t, primary_node->hv + 1);
+    node_ptr backup_node = succ(t, primary_node->hv);
     res[0] = primary_node->cid;
     res[1] = backup_node->cid;
     return res;
@@ -84,7 +84,7 @@ cache_id ring_get_pred_id(rbt_ptr t, cache_id cid)
 node_ptr pred(rbt_ptr t, hash_value value)
 {
     node_ptr n = t->root;
-    node_ptr pr = NULL;
+    node_ptr pr = t->nil;
     while (n->hv != value) {
         if (value > n->hv) {
             pr = n;
@@ -95,9 +95,9 @@ node_ptr pred(rbt_ptr t, hash_value value)
         }
     }
     if (n == rbt_min(t, t->root)) return rbt_max(t, t->root);
-    if (pr == NULL) { // we didn't go right: find rightmost node of left subtree
+    if (pr == t->nil) { // we didn't go right: find rightmost node of left subtree
         pr = n->left;
-        while (pr->right != NULL) pr = pr->right;
+        while (pr->right != t->nil) pr = pr->right;
     }
     return pr;
 }
@@ -121,17 +121,15 @@ node_ptr get_node_with_hv(rbt_ptr t, hash_value hv)
     return res;
 }
 
-void delete_entry(rbt_ptr t, hash_value hv)
+void delete_entry(rbt_ptr t, cache_id id)
 {
-    rbt_delete(t, get_node_with_hv(t, hv));
+    rbt_delete(t, get_node_with_hv(t, hash(id)));
 }
 
 void print_tree(rbt_ptr t, node_ptr c)
 {
     if (c == t->nil) return;
-    printf("Hash value (curr, left, right): %d %d %d\n", c->hv, c->left->hv, c->right->hv);
-    printf("Machine IDS (curr, left, right): %d %d %d\n", c->cid, c->left->cid, c->right->cid);
-
+    printf("ID: %lld Hash: %lld\n", c->cid, c->hv);
     print_tree(t, c->right);
     print_tree(t, c->left);
 }
@@ -142,15 +140,15 @@ node_ptr recur_succ(rbt_ptr t, node_ptr root, node_ptr suc, hash_value value)
         return suc;
     }
     if (value == root->hv) {
-        /* return leftmost node of right subtree */
-        suc = root->right;
-        if (suc == t->nil) {
-            suc = root;
-            while (suc->parent != t->nil && suc->hv < value) {
+        /* if right is nil, look back */
+        if (root->right == t->nil) {
+            while (suc->parent != t->nil && suc->parent->hv < value) {
                 suc = suc->parent;
             }
             return suc;
         }
+        /* otherwise, return leftmost node of right subtree */
+        suc = root->right;
         while (suc->left != t->nil) {
             suc = suc->left;
         }
@@ -179,8 +177,8 @@ rbt_ptr new_rbt(void)
     r = (rbt_ptr) malloc(sizeof(rbt));
     r->nil = (node_ptr) malloc(sizeof(node));
     r->nil->color = BLACK;
-    r->nil->hv = 0;
-    r->nil->cid = 0;
+    r->nil->hv = -1;
+    r->nil->cid = -1;
     r->root = r->nil;
     r->size = 0;
     return r;
@@ -457,7 +455,6 @@ void recur_free_rbt(rbt_ptr t, node_ptr n)
 {
     if (n->left != t->nil) recur_free_rbt(t, n->left);
     if (n->right != t->nil) recur_free_rbt(t, n->right);
-    printf("Freeing %d\n", n->hv);
     free(n);
 }
 

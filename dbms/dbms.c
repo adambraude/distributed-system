@@ -53,6 +53,7 @@ void test_put_vec_len_2(int queue_id, int vec_id, unsigned long long vec, unsign
 int main(int argc, char *argv[])
 {
     if (argc < 2) {
+        puts("Usage: dbms test_no");
         return 1;
     }
 
@@ -139,7 +140,11 @@ int main(int argc, char *argv[])
             put_vector(msq_id, i, read_vector(buf));
         }
         /* read queries */
-        FILE *fp = fopen("../tst_data/tpc/qs/query_lt128.dat", "r");
+        FILE *fp = fopen("../tst_data/tpc/qs/query_lt128.shuffled.dat", "r");
+        if (fp == NULL) {
+            puts("Error: could not open test file");
+            return 1;
+        }
         char *line = NULL;
         size_t n = 0;
         int qnum = 0;

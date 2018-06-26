@@ -20,7 +20,7 @@
 #include "../util/ds_util.h"
 #include "../experiments/fault_tolerance.h"
 
-#define DEBUG false
+#define DEBUG true /* show debugging messages */
 
 /* variables for use in all master functions */
 slave_ll *slavelist;
@@ -34,7 +34,6 @@ u_int num_slaves;
  * waiting to be reawakened (assumes 1 dead slave at a time)
  */
 slave *dead_slave;
-int separation;
 
 /* Ring CH variables */
 rbt_ptr chash_table;
@@ -42,8 +41,7 @@ rbt_ptr chash_table;
 /* static partition variables */
 int *partition_scale_1, *partition_scale_2; /* partitions and backups */
 u_int num_keys; /* e.g., value of largest known key, plus 1 */
-
-u_int max_vector_len;
+int separation;
 
 /**
  * Master Process
@@ -62,6 +60,7 @@ int main(int argc, char *argv[])
     int c;
     num_slaves = fill_slave_arr(SLAVELIST_PATH, &slave_addresses);
     if (num_slaves == -1) {
+        puts("Master: could not register slaves, exiting...");
         return 1;
     }
     if (num_slaves == 1) replication_factor = 1;

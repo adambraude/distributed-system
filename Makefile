@@ -109,4 +109,7 @@ vd_test: all
 
 # TPC Benchmarking Data Test
 tpc_test: all
+	@cd tst_data/tpc/qs && python3 qshuffle.py query_lt128.dat
 	@cd $(BIN) && ./dbms 3
+	@rm tst_data/tpc/qs/query_lt128.shuffled.dat
+	@echo "tpc-c test complete"

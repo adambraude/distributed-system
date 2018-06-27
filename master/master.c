@@ -20,7 +20,7 @@
 #include "../util/ds_util.h"
 #include "../experiments/fault_tolerance.h"
 
-#define DEBUG true /* show debugging messages */
+#define DEBUG false /* show debugging messages */
 
 /* variables for use in all master functions */
 slave_ll *slavelist;

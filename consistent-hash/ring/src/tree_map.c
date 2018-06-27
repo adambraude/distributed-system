@@ -139,7 +139,7 @@ node_ptr recur_succ(rbt_ptr t, node_ptr root, node_ptr suc, hash_value value)
     if (root == t->nil) {
         return suc;
     }
-    if (value == root->hv) {
+    else if (value == root->hv) {
         /* if right is nil, look back */
         if (root->right == t->nil) {
             while (suc->parent != t->nil && suc->parent->hv < value) {
@@ -154,7 +154,7 @@ node_ptr recur_succ(rbt_ptr t, node_ptr root, node_ptr suc, hash_value value)
         }
         return suc;
     }
-    if (root->hv > value) {
+    else if (root->hv > value) {
         suc = root;
         return recur_succ(t, root->left, suc, value);
     }

@@ -86,7 +86,7 @@ program AYA {
 
 struct copy_vector_args {
     unsigned int vec_id;
-    string destination_addr<32>;
+    unsigned int destination_no;
 };
 
 program COPY_OVER_VECTOR {

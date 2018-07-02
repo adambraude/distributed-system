@@ -23,7 +23,7 @@
 
 char **slave_addresses = NULL;
 
-#define SLAVE_DEBUG false
+#define SLAVE_DEBUG true
 
 query_result *get_vector(u_int vec_id)
 {
@@ -263,14 +263,14 @@ int *stayin_alive_1_svc(int x, struct svc_req *req)
  */
 int *send_vec_1_svc(copy_vector_args copy_args, struct svc_req *req)
 {
-    CLIENT *cl = clnt_create(copy_args.destination_addr, TWO_PHASE_COMMIT,
-        TWO_PHASE_COMMIT_V1, "tcp");
+    CLIENT *cl = clnt_create(slave_addresses[copy_args.destination_no],
+        TWO_PHASE_COMMIT, TWO_PHASE_COMMIT_V1, "tcp");
     commit_vec_args args;
     args.vec_id = copy_args.vec_id;
     query_result *qres = get_vector(copy_args.vec_id);
     memcpy(&args.vector, &qres->vector, sizeof(qres->vector));
     if (SLAVE_DEBUG)
-        printf("Sending vector %u to %s\n", copy_args.vec_id, copy_args.destination_addr);
+        printf("Sending vector %u to %s\n", copy_args.vec_id, slave_addresses[copy_args.destination_no]);
     result = *commit_vec_1(args, cl);
     free(qres);
     return &result;

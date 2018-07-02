@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
+#include <math.h>
 #include <time.h>
 
 #include <sys/ipc.h>
@@ -20,7 +20,7 @@
 #include "../util/ds_util.h"
 #include "../experiments/fault_tolerance.h"
 
-#define DEBUG false /* show debugging messages */
+#define DEBUG true /* show debugging messages */
 
 /* variables for use in all master functions */
 slave_ll *slavelist;
@@ -28,6 +28,8 @@ u_int slave_id_counter = 0;
 partition_t partition;
 query_plan_t query_plan;
 u_int num_slaves;
+
+unsigned long reac_time;
 
 /*
  * slave presumed dead,
@@ -127,6 +129,7 @@ int main(int argc, char *argv[])
     bool killed = false;
     struct msgbuf *request;
     struct msqid_ds buf;
+    u_int64_t pre_kill_times[FT_PREKILL_Q], post_kill_times[FT_POSTKILL_Q];
     u_int64_t pre_kill_tot = 0, post_kill_tot = 0;
     while (qnum < FT_NUM_QUERIES) {
         msgctl(msq_id, IPC_STAT, &buf);
@@ -186,8 +189,14 @@ int main(int argc, char *argv[])
                 u_int64_t dt = (end.tv_sec - start.tv_sec) * 1000000
                     + (end.tv_nsec - start.tv_nsec) / 1000;
                 // TODO write this to a file
-                if (killed) post_kill_tot += dt;
-                else pre_kill_tot += dt;
+                if (killed) {
+                    post_kill_tot += dt;
+                    post_kill_times[qnum % FT_PREKILL_Q] = dt;
+                }
+                else {
+                    pre_kill_tot += dt;
+                    pre_kill_times[qnum] = dt;
+                }
                 if (DEBUG)
                     printf("%ld: Range query %d took %llu ms\n",
                         end.tv_sec, ++qnum, dt);
@@ -199,8 +208,14 @@ int main(int argc, char *argv[])
             free(request);
         }
     }
-    printf("Avg time prekill: %f ms\n", ((float) pre_kill_tot) / FT_PREKILL_Q);
-    printf("Avg time postkill: %f ms\n", ((float) post_kill_tot) / FT_POSTKILL_Q);
+    double prekill_avg = ((double) pre_kill_tot) / FT_PREKILL_Q;
+    double prekill_stdev = stdev(pre_kill_times, prekill_avg, FT_PREKILL_Q);
+    printf("Avg time pre kill: %fms, stdev = %fms\n", prekill_avg, prekill_stdev);
+    printf("Recovery time = %lums\n", reac_time);
+    double postkill_avg = ((double) post_kill_tot) / FT_POSTKILL_Q;
+    double postkill_stdev = stdev(post_kill_times, postkill_avg, FT_POSTKILL_Q);
+    printf("Avg time postkill: %fms, stdev = %fms\n",
+        postkill_avg, postkill_stdev);
 
     /* deallocation */
     while (slavelist != NULL) {
@@ -214,6 +229,14 @@ int main(int argc, char *argv[])
         free(dead_slave->address);
         free(dead_slave);
     }
+}
+
+double stdev(u_int64_t *items, double avg, int N) {
+    double sum = 0.0;
+    int i;
+    for (i = 0; i < N; i++)
+        sum += pow(items[i] - avg, 2.0);
+    return sqrt(sum / (N - 1)); /* Bessel's correction */
 }
 
 int starfish(range_query_contents contents)
@@ -300,9 +323,8 @@ int heartbeat()
             clock_gettime(CLOCK_REALTIME, &start);
             reallocate();
             clock_gettime(CLOCK_REALTIME, &end);
-            printf("Reallocation time = %ld ms\n",
-                (end.tv_sec - start.tv_sec) * 1000000
-                + (end.tv_nsec - start.tv_nsec) / 1000);
+            reac_time = (end.tv_sec - start.tv_sec) * 1000000
+            + (end.tv_nsec - start.tv_nsec) / 1000;
         }
     }
     return 0;
@@ -343,20 +365,24 @@ void reallocate()
                     sucsuc = head->slave_node;
             }
 
-            slave_vector *vec = pred->primary_vector_head;
+            slave_vector *vec;
+            /* transfer predecessor's nodes to successor */
             if (pred != succ) {
+                vec = pred->primary_vector_head;
                 for (; vec != NULL; vec = vec->next) {
                     send_vector(pred, vec->id, succ);
                 }
             }
 
-            vec = dead_slave->primary_vector_head;
-            // transfer successor's nodes to its successor as its backup
-            for (; vec != NULL; vec = vec->next) {
-                send_vector(succ, vec->id, sucsuc);
+            /* transfer successor's nodes to its successor */
+            if (succ != sucsuc) {
+                vec = dead_slave->primary_vector_head;
+                for (; vec != NULL; vec = vec->next) {
+                    send_vector(succ, vec->id, sucsuc);
+                }
             }
 
-            // join dead node's linked list with the successor
+            /* join dead node's linked list with the successor */
             dead_slave->primary_vector_head->next = succ->primary_vector_tail;
             succ->primary_vector_tail = dead_slave->primary_vector_tail;
 

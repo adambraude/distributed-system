@@ -48,5 +48,6 @@ int get_new_slave_id(void);
 slave *new_slave(char *address);
 int compare_machine_vec_tuple(const void *, const void *);
 int remove_slave(unsigned int);
+double stdev(u_int64_t *items, double avg, int N);
 
 #endif /* MASTER_H */

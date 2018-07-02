@@ -150,7 +150,7 @@ bool is_alive(char *address)
         return false;
     }
     struct timeval tv;
-    tv.tv_sec = 1; // TODO: it is important to come up with a reasonable value for this!
+    tv.tv_sec = 1;
     tv.tv_usec = 0;
     clnt_control(cl, CLSET_TIMEOUT, &tv);
     int *res = stayin_alive_1(0, cl);
@@ -169,14 +169,12 @@ int send_vector(slave *slave_1, vec_id_t vec_id, slave *slave_2)
         return 1;
     }
     struct timeval tv;
-    tv.tv_sec = 1; // TODO: it is important to come up with a reasonable value for this!
+    tv.tv_sec = 1;
     tv.tv_usec = 0;
     clnt_control(cl, CLSET_TIMEOUT, &tv);
     copy_vector_args args;
     args.vec_id = vec_id;
-    char *addr = slave_2->address;
-    args.destination_addr = (char *) malloc(sizeof(addr));
-    strcpy(args.destination_addr, addr);
+    args.destination_no = slave_2->id;
     int *res = send_vec_1(args, cl);
     clnt_destroy(cl);
     return *res;

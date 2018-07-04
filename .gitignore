@@ -9,3 +9,6 @@ __pycache__
 
 # macOS Finder file
 .DS_Store
+
+# List of slaves
+SLAVELIST

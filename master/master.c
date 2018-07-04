@@ -126,7 +126,7 @@ int main(int argc, char *argv[])
     }
     int msq_id = msgget(MSQ_KEY, MSQ_PERMISSIONS | IPC_CREAT), rc, qnum = 0;
     int slave_death_inst = FT_KILL_Q;
-    bool killed = false;
+    ///bool killed = false;
     struct msgbuf *request;
     struct msqid_ds buf;
     u_int64_t pre_kill_times[FT_PREKILL_Q], post_kill_times[FT_POSTKILL_Q];
@@ -139,17 +139,23 @@ int main(int argc, char *argv[])
     timeinfo = localtime(&rawtime);
     /* skip month and day */
     char *timestamp = asctime(timeinfo) + 11;
-    timestamp[strlen(timestamp) - 1] = '\0'; /* trim junk char */
+    timestamp[strlen(timestamp) - 6] = '\0'; /* trim junk char */
     char outfile_nmbuf[36];
-    snprintf(outfile_nmbuf, 36, "%s%s.csv", "ft-", timestamp);
+    snprintf(outfile_nmbuf, 36, "%s%s.csv", FT_OUT_PREFIX, timestamp);
     ft_exp_out = fopen(outfile_nmbuf, "w");
+    char *first_ln = "qnum,time,sum";
+    fwrite(first_ln, sizeof(char), strlen(first_ln), ft_exp_out);
     u_int64_t sum_dt = 0;
     while (qnum < FT_NUM_QUERIES) {
         msgctl(msq_id, IPC_STAT, &buf);
-        if (qnum == slave_death_inst) {
+
+        /* For experiment: if a certain query 0 by the modulus is reached,
+         * kill a slave */
+        if (qnum > 0 && qnum % FT_KILL_MODULUS == 0 && num_slaves > 1) {
             kill_random_slave(num_slaves);
-            killed = true;
+            //killed = true;
         }
+
         heartbeat(); // TODO: this can be called elsewhere
         if (buf.msg_qnum > 0) {
 
@@ -206,6 +212,7 @@ int main(int argc, char *argv[])
                 sum_dt += dt;
                 snprintf(res_buf, 128, "%d,%lu,%lu\n", qnum, dt, sum_dt);
                 fwrite(res_buf, sizeof(char), strlen(res_buf), ft_exp_out);
+                /*
                 if (killed) {
                     post_kill_tot += dt;
                     post_kill_times[qnum % FT_PREKILL_Q] = dt;
@@ -214,7 +221,7 @@ int main(int argc, char *argv[])
                     pre_kill_tot += dt;
                     pre_kill_times[qnum] = dt;
                 }
-                
+                */
                 if (DEBUG)
                     printf("%ld: Range query %d took %lu ms\n",
                         end.tv_sec, ++qnum, dt);
@@ -229,7 +236,8 @@ int main(int argc, char *argv[])
     fclose(ft_exp_out);
     double prekill_avg = ((double) pre_kill_tot) / FT_PREKILL_Q;
     double prekill_stdev = stdev(pre_kill_times, prekill_avg, FT_PREKILL_Q);
-    printf("Avg time pre kill: %fms, stdev = %fms\n", prekill_avg, prekill_stdev);
+    printf("Avg time pre kill: %fms, stdev = %fms\n", prekill_avg,
+            prekill_stdev);
     printf("Recovery time = %lums\n", reac_time);
     double postkill_avg = ((double) post_kill_tot) / FT_POSTKILL_Q;
     double postkill_stdev = stdev(post_kill_times, postkill_avg, FT_POSTKILL_Q);
@@ -360,7 +368,7 @@ int remove_slave(u_int slave_id)
     while ((*head)->slave_node->id != slave_id)
         head = &(*head)->next;
     dead_slave = (*head)->slave_node;
-    /* ...and just remove it (Torvalds-style) */
+    /* ...and just remove it */
     *head = (*head)->next;
     if (--num_slaves == 1) replication_factor = 1;
     return EXIT_SUCCESS;

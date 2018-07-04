@@ -17,7 +17,7 @@
 
 char **slave_addresses;
 
-#define TIME_TO_VOTE 1 // XXX make this shared between master/slave (general timeout)
+#define TIME_TO_VOTE 1
 
 query_result *rq_range_root(rq_range_root_args *query);
 
@@ -31,7 +31,10 @@ query_result **results;
 
 int kill_random_slave(int num_slaves) {
     srand(time(NULL));
-    int death_index = rand() % num_slaves;
+    int death_index;
+    do { // XXX temporary workaround, while killing slave 0 causes bug
+        death_index = rand() % num_slaves;
+    } while (death_index == 0);
     printf("Killing slave %d\n", death_index);
     CLIENT *cl = clnt_create(slave_addresses[death_index],
         KILL_SLAVE, KILL_SLAVE_V1, "tcp");
@@ -50,7 +53,8 @@ int
 init_range_query(unsigned int *range_array, int num_ranges,
     char *ops, int array_len)
 {
-    rq_range_root_args *root = (rq_range_root_args *) malloc(sizeof(rq_range_root_args));
+    rq_range_root_args *root = (rq_range_root_args *)
+        malloc(sizeof(rq_range_root_args));
     root->range_array.range_array_val = range_array;
     root->range_array.range_array_len = array_len;
     root->num_ranges = num_ranges;
@@ -106,7 +110,8 @@ query_result *rq_range_root(rq_range_root_args *query)
 
     /*
      * Conclude the query. Join each contributing thread,
-     * and in doing so, report error if there is one, or report largest vector size
+     * and in doing so, report error if there is one, or report largest vector
+     * size.
      */
     u_int result_vector_len = 0, largest_vector_len = 0;
     for (i = 0; i < num_threads; i++) {
@@ -191,7 +196,8 @@ void *init_coordinator_thread(void *coord_args) {
         /* Report that this machine failed */
         res = (query_result *) malloc(sizeof(query_result));
         res->exit_code = EXIT_FAILURE;
-        res->error_message = machine_failure_msg(slave_addresses[args->args->machine_no]);
+        res->error_message = machine_failure_msg(slave_addresses[
+            args->args->machine_no]);
     }
     results[args->query_result_index] = res;
     clnt_destroy(clnt);

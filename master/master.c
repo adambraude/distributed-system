@@ -20,8 +20,6 @@
 #include "../util/ds_util.h"
 #include "../experiments/fault_tolerance.h"
 
-#define DEBUG true /* show debugging messages */
-
 /* variables for use in all master functions */
 slave_ll *slavelist;
 u_int slave_id_counter = 0;
@@ -341,14 +339,18 @@ int heartbeat()
         char *addr = head->slave_node->address;
         int id = head->slave_node->id;
         head = head->next;
+        if (DEBUG)
+            printf("Checking slave %d\n", id);
         if (!is_alive(addr)) {
             remove_slave(id);
+            if (DEBUG) puts("removed slave");
             if (num_slaves == 0) {
                 return 1;
             }
             struct timespec start, end;
             clock_gettime(CLOCK_REALTIME, &start);
             reallocate();
+            if (DEBUG) puts("realloced");
             clock_gettime(CLOCK_REALTIME, &end);
             reac_time = (end.tv_sec - start.tv_sec) * 1000000
             + (end.tv_nsec - start.tv_nsec) / 1000;
@@ -383,8 +385,7 @@ void reallocate()
             u_int sucsuc_id = ring_get_succ_id(chash_table, succ_id);
             slave_ll *head = slavelist;
             slave *pred, *succ, *sucsuc;
-            // TODO could skip this step by storing the nodes in the tree
-            // instead of having to find them this way
+
             for (; head != NULL; head = head->next) {
                 if (head->slave_node->id == pred_id) pred = head->slave_node;
                 if (head->slave_node->id == succ_id) succ = head->slave_node;
@@ -392,6 +393,8 @@ void reallocate()
                     sucsuc = head->slave_node;
             }
 
+            if (DEBUG)
+                puts("pred -> succ");
             slave_vector *vec;
             /* transfer predecessor's nodes to successor */
             if (pred != succ) {
@@ -401,6 +404,8 @@ void reallocate()
                 }
             }
 
+            if (DEBUG)
+                puts("suc -> sucsuc");
             /* transfer successor's nodes to its successor */
             if (succ != sucsuc) {
                 vec = dead_slave->primary_vector_head;
@@ -409,8 +414,10 @@ void reallocate()
                 }
             }
 
-            /* join dead node's linked list with the successor */
-            dead_slave->primary_vector_head->next = succ->primary_vector_tail;
+            if (DEBUG)
+                puts("Joining linked lists");
+            /* join dead node's linked list with the successor's */
+            succ->primary_vector_tail->next = dead_slave->primary_vector_head;
             succ->primary_vector_tail = dead_slave->primary_vector_tail;
 
             delete_entry(chash_table, dead_slave->id);
@@ -440,26 +447,29 @@ slave **get_machines_for_vector(vec_id_t vec_id, bool updating)
         case RING_CH: {
             long long *tr = ring_get_machines_for_vector(chash_table, vec_id);
             if (updating) {
-                // update this slave's primary vectors
+                /* update slave's primary vector list */
                 slave_ll *head = slavelist;
                 while (head->slave_node->id != tr[0]) head = head->next;
                 slave *slv = head->slave_node;
-                // update this slave's primary vector list
-                if (slv->primary_vector_head == NULL) { /* insert it at the head and tail */
-                    slv->primary_vector_head = (slave_vector *) malloc(sizeof(slave_vector));
+                /* insert it at the head and tail */
+                if (slv->primary_vector_head == NULL) {
+                    slv->primary_vector_head = (slave_vector *)
+                        malloc(sizeof(slave_vector));
                     slv->primary_vector_head->id = vec_id;
                     slv->primary_vector_head->next = NULL;
                     slv->primary_vector_tail = slv->primary_vector_head;
                 }
                 else { /* insert it at the tail */
-                    slave_vector *vec = (slave_vector *) malloc(sizeof(slave_vector));
+                    slave_vector *vec = (slave_vector *)
+                    malloc(sizeof(slave_vector));
                     slv->primary_vector_tail->next = vec;
                     slv->primary_vector_tail = vec;
                     vec->id = vec_id;
                     vec->next = NULL;
                 }
             }
-            slave **tr_slaves = (slave **) malloc(sizeof(slave*) * replication_factor);
+            slave **tr_slaves = (slave **)
+                malloc(sizeof(slave*) * replication_factor);
             int i;
             for (i = 0; i < replication_factor; i++) {
                 slave_ll *node = slavelist;

@@ -32,9 +32,7 @@ query_result **results;
 int kill_random_slave(int num_slaves) {
     srand(time(NULL));
     int death_index;
-    do { // XXX temporary workaround, while killing slave 0 causes bug
-        death_index = rand() % num_slaves;
-    } while (death_index == 0);
+    death_index = rand() % num_slaves;
     printf("Killing slave %d\n", death_index);
     CLIENT *cl = clnt_create(slave_addresses[death_index],
         KILL_SLAVE, KILL_SLAVE_V1, "tcp");

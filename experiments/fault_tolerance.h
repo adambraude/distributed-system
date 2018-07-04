@@ -10,6 +10,6 @@
 #define FT_KILL_Q       FT_NUM_QUERIES / 2
 #define FT_PREKILL_Q    FT_KILL_Q
 #define FT_POSTKILL_Q   FT_KILL_Q
-#define FT_OUT_PREFIX   "ft_out"
+#define FT_OUT_PREFIX   "ft-out"
 
 #endif

@@ -131,6 +131,19 @@ int main(int argc, char *argv[])
     struct msqid_ds buf;
     u_int64_t pre_kill_times[FT_PREKILL_Q], post_kill_times[FT_POSTKILL_Q];
     u_int64_t pre_kill_tot = 0, post_kill_tot = 0;
+    /* experiment output file */
+    FILE *ft_exp_out;
+    time_t rawtime;
+    struct tm *timeinfo;
+    time(&rawtime);
+    timeinfo = localtime(&rawtime);
+    /* skip month and day */
+    char *timestamp = asctime(timeinfo) + 11;
+    timestamp[strlen(timestamp) - 1] = '\0'; /* trim junk char */
+    char outfile_nmbuf[36];
+    snprintf(outfile_nmbuf, 36, "%s%s.csv", "ft-", timestamp);
+    ft_exp_out = fopen(outfile_nmbuf, "w");
+    u_int64_t sum_dt = 0;
     while (qnum < FT_NUM_QUERIES) {
         msgctl(msq_id, IPC_STAT, &buf);
         if (qnum == slave_death_inst) {
@@ -157,8 +170,8 @@ int main(int argc, char *argv[])
                     printf("Putting vector %d\n", request->vector.vec_id);
                 slave **commit_slaves =
                     get_machines_for_vector(request->vector.vec_id, true);
-                int commit_res = commit_vector(request->vector.vec_id, request->vector.vec,
-                    commit_slaves, replication_factor);
+                int commit_res = commit_vector(request->vector.vec_id,
+                    request->vector.vec, commit_slaves, replication_factor);
                 if (commit_res)
                     heartbeat();
             }
@@ -189,6 +202,10 @@ int main(int argc, char *argv[])
                 u_int64_t dt = (end.tv_sec - start.tv_sec) * 1000000
                     + (end.tv_nsec - start.tv_nsec) / 1000;
                 // TODO write this to a file
+                char res_buf[128];
+                sum_dt += dt;
+                snprintf(res_buf, 128, "%d,%llu,%llu\n", qnum, dt, sum_dt);
+                fwrite(res_buf, sizeof(char), strlen(res_buf), ft_exp_out);
                 if (killed) {
                     post_kill_tot += dt;
                     post_kill_times[qnum % FT_PREKILL_Q] = dt;
@@ -197,6 +214,7 @@ int main(int argc, char *argv[])
                     pre_kill_tot += dt;
                     pre_kill_times[qnum] = dt;
                 }
+                
                 if (DEBUG)
                     printf("%ld: Range query %d took %llu ms\n",
                         end.tv_sec, ++qnum, dt);
@@ -208,6 +226,7 @@ int main(int argc, char *argv[])
             free(request);
         }
     }
+    fclose(ft_exp_out);
     double prekill_avg = ((double) pre_kill_tot) / FT_PREKILL_Q;
     double prekill_stdev = stdev(pre_kill_times, prekill_avg, FT_PREKILL_Q);
     printf("Avg time pre kill: %fms, stdev = %fms\n", prekill_avg, prekill_stdev);

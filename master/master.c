@@ -204,7 +204,7 @@ int main(int argc, char *argv[])
                 // TODO write this to a file
                 char res_buf[128];
                 sum_dt += dt;
-                snprintf(res_buf, 128, "%d,%llu,%llu\n", qnum, dt, sum_dt);
+                snprintf(res_buf, 128, "%d,%lu,%lu\n", qnum, dt, sum_dt);
                 fwrite(res_buf, sizeof(char), strlen(res_buf), ft_exp_out);
                 if (killed) {
                     post_kill_tot += dt;
@@ -216,7 +216,7 @@ int main(int argc, char *argv[])
                 }
                 
                 if (DEBUG)
-                    printf("%ld: Range query %d took %llu ms\n",
+                    printf("%ld: Range query %d took %lu ms\n",
                         end.tv_sec, ++qnum, dt);
 
             }

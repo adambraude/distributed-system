@@ -170,7 +170,7 @@ int main(int argc, char *argv[])
             }
 
             if (request->mtype == mtype_put) {
-                if (DEBUG)
+                if (M_DEBUG)
                     printf("Putting vector %d\n", request->vector.vec_id);
                 slave **commit_slaves =
                     get_machines_for_vector(request->vector.vec_id, true);
@@ -220,7 +220,7 @@ int main(int argc, char *argv[])
                     pre_kill_times[qnum] = dt;
                 }
                 */
-                if (DEBUG)
+                if (M_DEBUG)
                     printf("%ld: Range query %d took %lu ms\n",
                         end.tv_sec, ++qnum, dt);
 
@@ -339,18 +339,18 @@ int heartbeat()
         char *addr = head->slave_node->address;
         int id = head->slave_node->id;
         head = head->next;
-        if (DEBUG)
+        if (M_DEBUG)
             printf("Checking slave %d\n", id);
         if (!is_alive(addr)) {
             remove_slave(id);
-            if (DEBUG) puts("removed slave");
+            if (M_DEBUG) puts("removed slave");
             if (num_slaves == 0) {
                 return 1;
             }
             struct timespec start, end;
             clock_gettime(CLOCK_REALTIME, &start);
             reallocate();
-            if (DEBUG) puts("realloced");
+            if (M_DEBUG) puts("realloced");
             clock_gettime(CLOCK_REALTIME, &end);
             reac_time = (end.tv_sec - start.tv_sec) * 1000000
             + (end.tv_nsec - start.tv_nsec) / 1000;
@@ -393,7 +393,7 @@ void reallocate()
                     sucsuc = head->slave_node;
             }
 
-            if (DEBUG)
+            if (M_DEBUG)
                 puts("pred -> succ");
             slave_vector *vec;
             /* transfer predecessor's nodes to successor */
@@ -404,7 +404,7 @@ void reallocate()
                 }
             }
 
-            if (DEBUG)
+            if (M_DEBUG)
                 puts("suc -> sucsuc");
             /* transfer successor's nodes to its successor */
             if (succ != sucsuc) {
@@ -414,7 +414,7 @@ void reallocate()
                 }
             }
 
-            if (DEBUG)
+            if (M_DEBUG)
                 puts("Joining linked lists");
             /* join dead node's linked list with the successor's */
             succ->primary_vector_tail->next = dead_slave->primary_vector_head;

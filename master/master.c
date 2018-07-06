@@ -129,29 +129,39 @@ int main(int argc, char *argv[])
     struct msqid_ds buf;
     u_int64_t pre_kill_times[FT_PREKILL_Q], post_kill_times[FT_POSTKILL_Q];
     u_int64_t pre_kill_tot = 0, post_kill_tot = 0;
-    /* experiment output file */
+
+    /* fault tolerance experiment output file */
     FILE *ft_exp_out;
     time_t rawtime;
     struct tm *timeinfo;
     time(&rawtime);
     timeinfo = localtime(&rawtime);
-    /* skip month and day */
-    char *timestamp = asctime(timeinfo) + 11;
-    timestamp[strlen(timestamp) - 6] = '\0'; /* trim junk char */
+    char *timestamp = asctime(timeinfo) + 11; /* skip month and day */
+    timestamp[strlen(timestamp) - 6] = '\0'; /* trim year */
     char outfile_nmbuf[36];
     snprintf(outfile_nmbuf, 36, "%s%s.csv", FT_OUT_PREFIX, timestamp);
     ft_exp_out = fopen(outfile_nmbuf, "w");
-    char *first_ln = "qnum,time,sum";
+    char *first_ln = "qnum,time,sum\n";
     fwrite(first_ln, sizeof(char), strlen(first_ln), ft_exp_out);
     u_int64_t sum_dt = 0;
+    int slave_death_index = 0;
+
     while (qnum < FT_NUM_QUERIES) {
         msgctl(msq_id, IPC_STAT, &buf);
 
         /* For experiment: if a certain query 0 by the modulus is reached,
          * kill a slave */
+
         if (qnum > 0 && qnum % FT_KILL_MODULUS == 0 && num_slaves > 1) {
-            kill_random_slave(num_slaves);
-            //killed = true;
+            switch (FT_EXP_TYPE) {
+                case ORDERED:
+                    kill_slave(slaves_to_die[slave_death_index++]);
+                    break;
+                case RANDOM_SLAVE:
+                    kill_random_slave(num_slaves);
+                    break;
+            }
+
         }
 
         heartbeat(); // TODO: this can be called elsewhere
@@ -159,7 +169,6 @@ int main(int argc, char *argv[])
 
             request = (struct msgbuf *) malloc(sizeof(msgbuf));
             /* Grab from queue. */
-            // TODO fill in messages
             rc = msgrcv(msq_id, request, sizeof(msgbuf), 0, 0);
 
             /* Error Checking */
@@ -205,7 +214,6 @@ int main(int argc, char *argv[])
                 clock_gettime(CLOCK_REALTIME, &end);
                 u_int64_t dt = (end.tv_sec - start.tv_sec) * 1000000
                     + (end.tv_nsec - start.tv_nsec) / 1000;
-                // TODO write this to a file
                 char res_buf[128];
                 sum_dt += dt;
                 snprintf(res_buf, 128, "%d,%lu,%lu\n", qnum, dt, sum_dt);
@@ -221,9 +229,9 @@ int main(int argc, char *argv[])
                 }
                 */
                 if (M_DEBUG)
-                    printf("%ld: Range query %d took %lu ms\n",
-                        end.tv_sec, ++qnum, dt);
-
+                    printf("%ld: Range query %d took %lu ns\n",
+                        end.tv_sec, qnum, dt);
+                qnum++;
             }
             else if (request->mtype == mtype_point_query) {
                 /* TODO: Call Jahrme function here */
@@ -232,6 +240,7 @@ int main(int argc, char *argv[])
         }
     }
     fclose(ft_exp_out);
+    /*
     double prekill_avg = ((double) pre_kill_tot) / FT_PREKILL_Q;
     double prekill_stdev = stdev(pre_kill_times, prekill_avg, FT_PREKILL_Q);
     printf("Avg time pre kill: %fms, stdev = %fms\n", prekill_avg,
@@ -241,7 +250,7 @@ int main(int argc, char *argv[])
     double postkill_stdev = stdev(post_kill_times, postkill_avg, FT_POSTKILL_Q);
     printf("Avg time postkill: %fms, stdev = %fms\n",
         postkill_avg, postkill_stdev);
-
+    */
     /* deallocation */
     while (slavelist != NULL) {
         free(slavelist->slave_node->address);

@@ -154,7 +154,6 @@ bool is_alive(char *address)
     tv.tv_usec = 0;
     clnt_control(cl, CLSET_TIMEOUT, &tv);
     int *res = stayin_alive_1(0, cl);
-    if (M_DEBUG) puts("got alive resp");
     if (*res) {
         return false;
     }

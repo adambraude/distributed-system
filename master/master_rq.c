@@ -33,8 +33,13 @@ int kill_random_slave(int num_slaves) {
     srand(time(NULL));
     int death_index;
     death_index = rand() % num_slaves;
-    printf("Killing slave %d\n", death_index);
-    CLIENT *cl = clnt_create(slave_addresses[death_index],
+    return kill_slave(death_index);
+}
+
+int kill_slave(int slave_id) {
+    if (M_DEBUG)
+        printf("Killing slave %d\n", slave_id);
+    CLIENT *cl = clnt_create(slave_addresses[slave_id],
         KILL_SLAVE, KILL_SLAVE_V1, "tcp");
     if (cl == NULL) return -1;
     int *res = kill_order_1(0, cl);
@@ -185,7 +190,7 @@ void *init_coordinator_thread(void *coord_args) {
     }
     /* give the request a time-to-live */
     struct timeval tv;
-    tv.tv_sec = TIME_TO_VOTE;
+    tv.tv_sec = TIME_TO_VOTE * 5;
     tv.tv_usec = 0;
     clnt_control(clnt, CLSET_TIMEOUT, &tv);
     query_result *res = rq_pipe_1(*(args->args), clnt);

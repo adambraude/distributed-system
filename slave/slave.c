@@ -37,7 +37,8 @@ query_result *get_vector(u_int vec_id)
         res->vector.vector_len = 0;
         res->exit_code = EXIT_FAILURE;
         char buf[128];
-        snprintf(buf, 128, "Error: could not locate vector %d on machine %s\n", vec_id, slave_addresses[slave_id]); // TODO: also machine name?
+        snprintf(buf, 128, "Error: could not locate vector %d on machine %s\n",
+            vec_id, slave_addresses[slave_id]);
         res->error_message = buf;
         return res;
     }
@@ -77,16 +78,21 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
 
             if (query.op == '|') {
                 result_len = OR_WAH(result_val,
-                    this_result->vector.vector_val, this_result->vector.vector_len,
-                    next_result->vector.vector_val, next_result->vector.vector_len) + 1;
+                    this_result->vector.vector_val,
+                    this_result->vector.vector_len,
+                    next_result->vector.vector_val,
+                    next_result->vector.vector_len) + 1;
             }
             else if (query.op == '&') {
                 result_len = AND_WAH(result_val,
-                    this_result->vector.vector_val, this_result->vector.vector_len,
-                    next_result->vector.vector_val, next_result->vector.vector_len) + 1;
+                    this_result->vector.vector_val,
+                    this_result->vector.vector_len,
+                    next_result->vector.vector_val,
+                    next_result->vector.vector_len) + 1;
             }
             else {
-                query_result *res = (query_result *) malloc(sizeof(query_result));
+                query_result *res = (query_result *)
+                    malloc(sizeof(query_result));
                 char buf[32];
                 snprintf(buf, 32, "Unknown operator %c", query.op);
                 res->vector.vector_val = NULL;
@@ -97,10 +103,12 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
             }
             query = *query.next;
             if (query.next == NULL) { /* query finished */
-                query_result *res = (query_result *) malloc(sizeof(query_result));
+                query_result *res = (query_result *)
+                    malloc(sizeof(query_result));
                 res->vector.vector_len = result_len;
                 res->vector.vector_val = result_val;
-                memcpy(res->vector.vector_val, result_val, result_len * sizeof(u_int64_t));
+                memcpy(res->vector.vector_val, result_val,
+                    result_len * sizeof(u_int64_t));
                 res->exit_code = EXIT_SUCCESS;
                 free(this_result);
                 res->error_message = "";
@@ -125,7 +133,7 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
         else {
             /* give the request a time-to-live */
             struct timeval tv;
-            tv.tv_sec = TIME_TO_VOTE;
+            tv.tv_sec = TIME_TO_VOTE * 5;
             tv.tv_usec = 0;
             clnt_control(client, CLSET_TIMEOUT, &tv);
             if (SLAVE_DEBUG)
@@ -216,7 +224,7 @@ int *commit_vec_1_svc(struct commit_vec_args args, struct svc_req *req)
     char filename_buf[128];
     if (SLAVE_DEBUG)
         printf("Recieved vector %d\n", args.vec_id);
-    snprintf(filename_buf, 128, "v_%d.dat", args.vec_id); // TODO: function to get vector filename
+    snprintf(filename_buf, 128, "v_%d.dat", args.vec_id);
     fp = fopen(filename_buf, "wb");
     char buffer[1024];
     memset(buffer, 0, 1024);
@@ -268,6 +276,10 @@ int *send_vec_1_svc(copy_vector_args copy_args, struct svc_req *req)
     commit_vec_args args;
     args.vec_id = copy_args.vec_id;
     query_result *qres = get_vector(copy_args.vec_id);
+    if (qres->vector.vector_val == NULL) {
+        printf("Error: could not find vector %u\n", copy_args.vec_id);
+        return -1;
+    }
     memcpy(&args.vector, &qres->vector, sizeof(qres->vector));
     if (SLAVE_DEBUG)
         printf("Sending vector %u to %s\n", copy_args.vec_id, slave_addresses[copy_args.destination_no]);
@@ -282,7 +294,7 @@ int *send_vec_1_svc(copy_vector_args copy_args, struct svc_req *req)
  */
 int *kill_order_1_svc(int arg, struct svc_req *req)
 {
-    puts("Exiting...");
+    printf("Slave %d exiting\n", slave_id);
     exit(0);
 }
 

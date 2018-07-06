@@ -16,6 +16,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
+#define DBMS_DEBUG true
 
 void
 test_put_vec(int queue_id, int vec_id, u_int64_t *vector, u_int vector_len)
@@ -149,6 +150,7 @@ int main(int argc, char *argv[])
         size_t n = 0;
         int qnum = 0;
         while (getline(&line, &n, fp) != -1 && qnum++ < FT_NUM_QUERIES) {
+            if (DBMS_DEBUG) printf("DBMS: %s\n", line);
             range_query(msq_id, line);
         }
     }

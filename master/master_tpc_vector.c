@@ -16,7 +16,14 @@ typedef struct push_vec_args {
     char *slave_addr;
 } push_vec_args;
 
-// TODO move all master RPC functions into one file
+/*
+ * Returns true if the result is valid: the (int) pointer is nonnull and
+ * points to 0
+ */
+bool res_valid(int *r)
+{
+    return !(r == NULL || *r);
+}
 
 /*
  * Commit the given vid:vector mapping to the given array of slaves.
@@ -77,8 +84,7 @@ void *get_commit_resp(void *slv_addr_arg)
     tv.tv_usec = 0;
     clnt_control(clnt, CLSET_TIMEOUT, &tv);
     int *result = commit_msg_1(0, clnt);
-    if (result == NULL || *result == VOTE_ABORT);
-    else {
+    if (!(result == NULL || *result == VOTE_ABORT)) {
         pthread_mutex_lock(&lock);
         successes++;
         pthread_mutex_unlock(&lock);
@@ -101,7 +107,8 @@ void *push_vector(void *thread_arg)
     a->vec_id = args->vec_id;
     u_int64_t vec[args->vector.vector_length];
     a->vector.vector_val = vec;
-    memcpy(a->vector.vector_val, args->vector.vector, sizeof(u_int64_t) * args->vector.vector_length);
+    memcpy(a->vector.vector_val, args->vector.vector,
+        sizeof(u_int64_t) * args->vector.vector_length);
     a->vector.vector_len = args->vector.vector_length;
     int *result = commit_vec_1(*a, cl);
 
@@ -114,9 +121,10 @@ void *push_vector(void *thread_arg)
 }
 
 /**
- *  Connect to the slave process at the given address, returning a new slave.
+ * Connect to the slave process at the given address. Returns true if the
+ * slave was set up, false otherwise
  */
-int setup_slave(slave *slv)
+bool setup_slave(slave *slv)
 {
     CLIENT *cl = clnt_create(slv->address, SETUP_SLAVE, SETUP_SLAVE_V1,
         "tcp");
@@ -134,10 +142,7 @@ int setup_slave(slave *slv)
     int *res = init_slave_1(*args, cl);
     free(args);
     clnt_destroy(cl);
-    if (*res) {
-        return 1;
-    }
-    return 0;
+    return res_valid(res);
 }
 
 /**
@@ -154,11 +159,8 @@ bool is_alive(char *address)
     tv.tv_usec = 0;
     clnt_control(cl, CLSET_TIMEOUT, &tv);
     int *res = stayin_alive_1(0, cl);
-    if (*res) {
-        return false;
-    }
     clnt_destroy(cl);
-    return true;
+    return res_valid(res);
 }
 
 int send_vector(slave *slave_1, vec_id_t vec_id, slave *slave_2)
@@ -166,6 +168,7 @@ int send_vector(slave *slave_1, vec_id_t vec_id, slave *slave_2)
     CLIENT *cl = clnt_create(slave_1->address, COPY_OVER_VECTOR,
         COPY_OVER_VECTOR_V1, "tcp");
     if (cl == NULL) {
+        printf("Failed to connect to %s\n", slave_1->address);
         return 1;
     }
     struct timeval tv;
@@ -177,5 +180,9 @@ int send_vector(slave *slave_1, vec_id_t vec_id, slave *slave_2)
     args.destination_no = slave_2->id;
     int *res = send_vec_1(args, cl);
     clnt_destroy(cl);
+    if (res == NULL || *res) {
+        printf("Failed to send vector %u\n", vec_id);
+        return 1;
+    }
     return *res;
 }

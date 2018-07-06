@@ -70,7 +70,7 @@ int main(int argc, char *argv[])
     slave_ll *head = slavelist;
     for (i = 0; i < num_slaves; i++) {
         slave *s = new_slave(slave_addresses[i]);
-        if (!setup_slave(s)) { /* connected to slave? */
+        if (setup_slave(s)) { /* connected to slave? */
             slavelist->slave_node = s;
             if (i < num_slaves - 1) {
                 slavelist->next = (slave_ll *) malloc(sizeof(slave_ll));
@@ -152,13 +152,15 @@ int main(int argc, char *argv[])
         /* For experiment: if a certain query 0 by the modulus is reached,
          * kill a slave */
 
-        if (qnum > 0 && qnum % FT_KILL_MODULUS == 0 && num_slaves > 1) {
+        if (qnum > 0 && qnum % FT_KILL_MODULUS == 0 && num_slaves > 2) {
             switch (FT_EXP_TYPE) {
                 case ORDERED:
                     kill_slave(slaves_to_die[slave_death_index++]);
                     break;
                 case RANDOM_SLAVE:
                     kill_random_slave(num_slaves);
+                    break;
+                default:
                     break;
             }
 
@@ -348,18 +350,19 @@ int heartbeat()
         char *addr = head->slave_node->address;
         int id = head->slave_node->id;
         head = head->next;
-        if (M_DEBUG)
-            printf("Checking slave %d\n", id);
+        //if (M_DEBUG) printf("Checking slave %d\n", id);
         if (!is_alive(addr)) {
             remove_slave(id);
-            if (M_DEBUG) puts("removed slave");
+            //if (M_DEBUG) puts("removed slave");
             if (num_slaves == 0) {
                 return 1;
             }
             struct timespec start, end;
             clock_gettime(CLOCK_REALTIME, &start);
-            reallocate();
-            if (M_DEBUG) puts("realloced");
+            if (num_slaves > 1)
+                reallocate();
+            /* otherwise there is no need to reallocate. */
+            //if (M_DEBUG) puts("realloced");
             clock_gettime(CLOCK_REALTIME, &end);
             reac_time = (end.tv_sec - start.tv_sec) * 1000000
             + (end.tv_nsec - start.tv_nsec) / 1000;

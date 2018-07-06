@@ -37,7 +37,7 @@ typedef enum {UNISTAR, STARFISH, MULTISTAR, ITER_PRIM} query_plan_t; /* query pl
 static int replication_factor = 2;
 
 /* master function prototypes */
-int setup_slave(slave*);
+bool setup_slave(slave*);
 slave *new_slave(char*);
 int heartbeat(void);
 bool is_alive(char *);

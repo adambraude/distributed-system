@@ -24,6 +24,7 @@
 char **slave_addresses = NULL;
 
 #define SLAVE_DEBUG true
+#define SLAVE_ERR true
 
 query_result *get_vector(u_int vec_id)
 {
@@ -52,25 +53,32 @@ query_result *get_vector(u_int vec_id)
 
 bool query_res_valid(rq_pipe_args *query_ptr, u_int64_t **result_val,
     query_result *this_result, query_result *next_result,
-    u_int *result_len_ptr)
+    int *result_len_ptr)
 {
+    if (query_ptr == NULL) { // ...
+
+    }
     u_int v_len = max(this_result->vector.vector_len,
         next_result->vector.vector_len);
     u_int64_t arr[v_len];
     *result_val = arr;
     memset(*result_val, 0, v_len * sizeof(u_int64_t));
     rq_pipe_args query = *query_ptr;
+    int res;
     if (query.op == '|') {
-        *result_len_ptr = OR_WAH(*result_val,
+        res = OR_WAH(*result_val,
             this_result->vector.vector_val, this_result->vector.vector_len,
             next_result->vector.vector_val, next_result->vector.vector_len) + 1;
-        return true;
+        *result_len_ptr = res;
+        return res >= 0 ? true : false;
     }
     else if (query.op == '&') {
-        *result_len_ptr = AND_WAH(*result_val,
+        res = AND_WAH(*result_val,
             this_result->vector.vector_val, this_result->vector.vector_len,
             next_result->vector.vector_val, next_result->vector.vector_len) + 1;
-        return true;
+        *result_len_ptr = res;
+        return res >= 0 ? true : false;
+
     }
     return false;
 }
@@ -121,11 +129,9 @@ query_result *success_res(query_result *res)
 query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
 {
     query_result *this_result = get_vector(query.vec_id), *next_result = NULL;
-
     /* Something went wrong with reading the vector,
      * or we're in the final call */
     if (this_result->exit_code != EXIT_SUCCESS || query.next == NULL) {
-        if (SLAVE_DEBUG) puts("Query tail");
         return this_result;
     }
 
@@ -136,17 +142,20 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
         while (query.machine_no == slave_id) {
             next_result = get_vector(query.vec_id);
             if (next_result->exit_code == EXIT_FAILURE) {
-                printf("Error: vector %u not found\n", query.vec_id);
+                if (SLAVE_ERR)
+                    printf("Error: vector %u not found\n", query.vec_id);
                 return next_result;
             }
 
             u_int64_t *result_val = NULL;
-            u_int result_len;
+            int result_len;
 
             if (!query_res_valid(&query, &result_val, this_result, next_result,
                 &result_len)) {
+                puts("Error: invalid result");
                 free(this_result);
                 free(next_result);
+                puts("freed");
                 return query_err_res(&query);
             }
 
@@ -165,6 +174,7 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
         client = clnt_create(slave_addresses[host],
             REMOTE_QUERY_PIPE, REMOTE_QUERY_PIPE_V1, "tcp");
         if (client == NULL) {
+            if (SLAVE_ERR) puts("Downstream client null");
             clnt_pcreateerror(slave_addresses[host]);
             return failed_slave_res(this_result,
                 slave_addresses[query.machine_no]);
@@ -180,7 +190,8 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
             next_result = rq_pipe_1(query, client);
             clnt_destroy(client);
             if (next_result == NULL) {
-                clnt_perror(client, "Recursive pipe call failed");
+                if (SLAVE_ERR) puts("Failed to obtain next result.");
+                //clnt_perror(client, "Recursive pipe call failed");
                 return failed_slave_res(this_result,
                     slave_addresses[query.machine_no]);
             }
@@ -189,8 +200,8 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
 
     /* Something went wrong with the recursive call. */
     if (next_result->exit_code != EXIT_SUCCESS) {
-        if (SLAVE_DEBUG)
-            printf("Result response: %s", next_result->error_message);
+        if (SLAVE_ERR)
+            printf("Recursive call error: %s", next_result->error_message);
         free(this_result);
         puts("recursive call failed");
         return next_result;
@@ -198,9 +209,10 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
 
     /* Our final return values. */
     u_int64_t *result_val = NULL;
-    u_int result_len;
+    int result_len;
     if (!query_res_valid(&query, &result_val, this_result, next_result,
         &result_len)) {
+        if (SLAVE_ERR) puts("Could not compile final result");
         free(this_result);
         return query_err_res(&query);
     }
@@ -234,8 +246,7 @@ int *commit_vec_1_svc(struct commit_vec_args args, struct svc_req *req)
 {
     FILE *fp;
     char filename_buf[128];
-    if (SLAVE_DEBUG)
-        printf("Recieved vector %d\n", args.vec_id);
+    if (SLAVE_DEBUG) printf("Recieved vector %d\n", args.vec_id);
     snprintf(filename_buf, 128, "v_%d.dat", args.vec_id);
     fp = fopen(filename_buf, "wb");
     char buffer[1024];
@@ -285,6 +296,12 @@ int *send_vec_1_svc(copy_vector_args copy_args, struct svc_req *req)
 {
     CLIENT *cl = clnt_create(slave_addresses[copy_args.destination_no],
         TWO_PHASE_COMMIT, TWO_PHASE_COMMIT_V1, "tcp");
+    if (cl == NULL) {
+        result = -1;
+        printf("Error: could not connect to %s\n",
+            slave_addresses[copy_args.destination_no]);
+        return &result;
+    }
     commit_vec_args args;
     args.vec_id = copy_args.vec_id;
     query_result *qres = get_vector(copy_args.vec_id);

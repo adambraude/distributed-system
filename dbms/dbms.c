@@ -141,7 +141,9 @@ int main(int argc, char *argv[])
             put_vector(msq_id, i, read_vector(buf));
         }
         /* read queries */
-        FILE *fp = fopen("../tst_data/tpc/qs/.query_lt128.shuffled.dat", "r");
+        FILE *fp;
+        //fp = fopen("../tst_data/tpc/qs/.query_lt128.shuffled.dat", "r");
+        fp = fopen("../tst_data/tpc/qs/smalltest.dat", "r");
         if (fp == NULL) {
             puts("Error: could not open test file");
             return 1;
@@ -150,7 +152,7 @@ int main(int argc, char *argv[])
         size_t n = 0;
         int qnum = 0;
         while (getline(&line, &n, fp) != -1 && qnum++ < FT_NUM_QUERIES) {
-            if (DBMS_DEBUG) printf("DBMS: %s\n", line);
+            //if (DBMS_DEBUG) printf("DBMS: %s\n", line);
             range_query(msq_id, line);
         }
     }

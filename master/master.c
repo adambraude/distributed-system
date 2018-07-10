@@ -46,12 +46,12 @@ int main(int argc, char *argv[])
     query_plan = STARFISH;
 
     int c;
-    num_slaves = fill_slave_arr(SLAVELIST_PATH, &slave_addresses);
+    int slave_cnt = fill_slave_arr(SLAVELIST_PATH, &slave_addresses);
+
     if (num_slaves == -1) {
         puts("Master: could not register slaves, exiting...");
         return 1;
     }
-    if (num_slaves == 1) replication_factor = 1;
 
     if (partition == RING_CH) {
         chash_table = new_rbt();
@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
 
     /* index in slave list will be the machine ID (0 is master) */
     slave *s;
-    for (i = 0; i < num_slaves; i++) {
+    for (i = 0; i < slave_cnt; i++) {
         s = new_slave(slave_addresses[i]);
         if (setup_slave(s) && partition == RING_CH) { /* connected to slave? */
             insert_slave(chash_table, s);
@@ -68,6 +68,9 @@ int main(int argc, char *argv[])
             printf("Failed to setup slave %s\n", slave_addresses[i]);
         }
     }
+
+    if (num_slaves == 1) replication_factor = 1;
+
 
     /* Message queue setup */
     int msq_id = msgget(MSQ_KEY, MSQ_PERMISSIONS | IPC_CREAT), rc, qnum = 0;
@@ -388,7 +391,7 @@ slave **get_machines_for_vector(vec_id_t vec_id, bool updating)
             slave **tr = ring_get_machines_for_vector(chash_table, vec_id,
                 replication_factor);
             if (M_DEBUG) {
-                printf("v_4 for: %u,%u\n", tr[0]->id, tr[1]->id);
+                //printf("v_4 for: %u,%u\n", tr[0]->id, tr[1]->id);
             }
             if (updating) {
                 /* update slave's primary vector list */

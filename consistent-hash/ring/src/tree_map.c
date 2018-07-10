@@ -168,7 +168,7 @@ void print_tree(rbt *t, node *c)
 {
     if (c == t->nil) return;
     print_tree(t, c->left);
-    printf("ID: %lld Hash: %lld\n", c->slv->id, c->hv);
+    printf("ID: %u Hash: %lld\n", c->slv->id, c->hv);
     print_tree(t, c->right);
 }
 

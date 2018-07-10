@@ -13,31 +13,31 @@
 
 /* RBT op prototypes */
 /* RBT initialization functions */
-rbt_ptr new_rbt(void);
-node_ptr new_node(rbt_ptr, cache_id, hash_value, rbt_node_color);
+rbt *new_rbt(void);
+node *new_node(rbt *, cache_id, hash_value, rbt_node_color);
 
 /* tree destructor */
-void free_rbt(rbt_ptr);
+void free_rbt(rbt *);
 
 /* RBT operations (from CLSR) */
-void left_rotate(rbt_ptr, node_ptr);
-void right_rotate(rbt_ptr, node_ptr);
-void rbt_insert(rbt_ptr, node_ptr);
-void rbt_insert_fixup(rbt_ptr, node_ptr);
-void rbt_transplant(rbt_ptr, node_ptr, node_ptr);
-node_ptr rbt_min(rbt_ptr, node_ptr);
-node_ptr rbt_max(rbt_ptr, node_ptr);
-void rbt_delete(rbt_ptr, node_ptr);
-void rbt_delete_fixup(rbt_ptr, node_ptr);
-node_ptr pred(rbt_ptr, hash_value);
-node_ptr get_node_with_hv(rbt_ptr, hash_value);
+void left_rotate(rbt *, node *);
+void right_rotate(rbt *, node *);
+void rbt_insert(rbt *, node *);
+void rbt_insert_fixup(rbt *, node *);
+void rbt_transplant(rbt *, node *, node *);
+node *rbt_min(rbt *, node *);
+node *rbt_max(rbt *, node *);
+void rbt_delete(rbt *, node *);
+void rbt_delete_fixup(rbt *, node *);
+node *pred(rbt *, hash_value);
+node *get_node_with_hv(rbt *, hash_value);
 
 /*
  * The cache_id of the node n in the tree with the smallest hash_value hv
  * such that n.hv > value.
  */
-node_ptr succ(rbt_ptr t, hash_value value);
-node_ptr recur_succ(rbt_ptr t, node_ptr root, node_ptr suc, hash_value value);
+node *succ(rbt *t, hash_value value);
+node *recur_succ(rbt *t, node *root, node *suc, hash_value value);
 uint64_t hash(unsigned long);
 
 
@@ -45,7 +45,7 @@ uint64_t hash(unsigned long);
  * Insert the new cache into the red-black tree
  *
  */
-void insert_cache(rbt_ptr t, struct cache* cptr)
+void insert_cache(rbt *t, struct cache* cptr)
 {
     int i;
     for (i = 0; i < cptr->replication_factor; i++) {
@@ -53,26 +53,63 @@ void insert_cache(rbt_ptr t, struct cache* cptr)
     }
 }
 
-static int replication_factor = 2;
-
-cache_id *ring_get_machines_for_vector(rbt_ptr t, unsigned int vec_id)
+/**
+ * Insert node with the given slave into the tree.
+ */
+void insert_slave(rbt *t, slave *s)
 {
-    cache_id *res = (cache_id *) malloc(sizeof(cache_id) * replication_factor);
-    node_ptr primary_node = succ(t, hash(vec_id));
-    node_ptr backup_node = succ(t, primary_node->hv + 1);
-    res[0] = primary_node->cid;
-    res[1] = backup_node->cid;
+    node *n = new_node(t, s->id, hash(s->id), RED);
+    n->slv = s;
+    rbt_insert(t, n);
+}
+
+slave **ring_get_machines_for_vector(rbt *t, unsigned int vec_id,
+    int replication_factor)
+{
+    slave **res = (slave **) malloc(sizeof(slave *) * replication_factor);
+    int i;
+    for (i = 0; i < replication_factor; i++) {
+        if (i == 0) {
+            res[0] = ring_get_succ_slave(t, vec_id);
+        }
+        else {
+            res[i] = ring_get_succ_slave(t, res[i - 1]->id);
+        }
+    }
     return res;
 }
 
-cache_id ring_get_succ_id(rbt_ptr t, cache_id cid)
+slave *ring_get_succ_slave(rbt *t, cache_id cid)
 {
-    return succ(t, hash(cid))->cid;
+    return succ(t, hash(cid))->slv;
 }
 
-cache_id ring_get_pred_id(rbt_ptr t, cache_id cid)
+slave *ring_get_pred_slave(rbt *t, cache_id cid)
 {
-    return pred(t, hash(cid))->cid;
+    return pred(t, hash(cid))->slv;
+}
+
+void recur_flatten_slavelist(rbt *t, node *r)
+{
+    t->fs[t->slavelist_index++] = r->slv;
+    if (r->right != t->nil) recur_flatten_slavelist(t, r->right);
+    if (r->left != t->nil) recur_flatten_slavelist(t, r->left);
+}
+
+void flatten_slavelist(rbt *t)
+{
+    t->slavelist_index = 0;
+    free(t->fs);
+    t->fs = (slave **) malloc(sizeof(slave *) * t->size);
+    recur_flatten_slavelist(t, t->root);
+    int i;
+    puts("printing slavelist");
+    for (i = 0; i < t->size; i++) printf("%d\n", t->fs[i]->id);
+}
+
+slave **ring_flattened_slavelist(rbt *t)
+{
+    return t->fs;
 }
 
 // TODO: predecessor node function
@@ -81,10 +118,10 @@ cache_id ring_get_pred_id(rbt_ptr t, cache_id cid)
  * returns the node in the tree that's the predecessor to the node
  * with the given key (assumes there exists a node with such a key in the tree)
  */
-node_ptr pred(rbt_ptr t, hash_value value)
+node *pred(rbt *t, hash_value value)
 {
-    node_ptr n = t->root;
-    node_ptr pr = t->nil;
+    node *n = t->root;
+    node *pr = t->nil;
     while (n->hv != value) {
         if (value > n->hv) {
             pr = n;
@@ -102,18 +139,18 @@ node_ptr pred(rbt_ptr t, hash_value value)
     return pr;
 }
 
-node_ptr succ(rbt_ptr t, hash_value value)
+node *succ(rbt *t, hash_value value)
 {
-    node_ptr curr = t->root;
+    node *curr = t->root;
     if (value >= rbt_max(t, curr)->hv) {
         return rbt_min(t, curr);
     }
     return recur_succ(t, t->root, t->root, value);
 }
 
-node_ptr get_node_with_hv(rbt_ptr t, hash_value hv)
+node *get_node_with_hv(rbt *t, hash_value hv)
 {
-    node_ptr res = t->root;
+    node *res = t->root;
     while (res->hv != hv) {
         if (res->hv < hv) res = res->right;
         else res = res->left;
@@ -121,20 +158,21 @@ node_ptr get_node_with_hv(rbt_ptr t, hash_value hv)
     return res;
 }
 
-void delete_entry(rbt_ptr t, cache_id id)
+void delete_entry(rbt *t, cache_id id)
 {
     rbt_delete(t, get_node_with_hv(t, hash(id)));
+    flatten_slavelist(t);
 }
 
-void print_tree(rbt_ptr t, node_ptr c)
+void print_tree(rbt *t, node *c)
 {
     if (c == t->nil) return;
-    printf("ID: %lld Hash: %lld\n", c->cid, c->hv);
-    print_tree(t, c->right);
     print_tree(t, c->left);
+    printf("ID: %lld Hash: %lld\n", c->slv->id, c->hv);
+    print_tree(t, c->right);
 }
 
-node_ptr recur_succ(rbt_ptr t, node_ptr root, node_ptr suc, hash_value value)
+node *recur_succ(rbt *t, node *root, node *suc, hash_value value)
 {
     if (root == t->nil) {
         return suc;
@@ -142,7 +180,8 @@ node_ptr recur_succ(rbt_ptr t, node_ptr root, node_ptr suc, hash_value value)
     else if (value == root->hv) {
         /* if right is nil, look back */
         if (root->right == t->nil) {
-            while (suc->parent != t->nil && suc->parent->hv < value) {
+            suc = root->parent;
+            while (suc->parent != t->nil && suc->hv < value) {
                 suc = suc->parent;
             }
             return suc;
@@ -155,8 +194,7 @@ node_ptr recur_succ(rbt_ptr t, node_ptr root, node_ptr suc, hash_value value)
         return suc;
     }
     else if (root->hv > value) {
-        suc = root;
-        return recur_succ(t, root->left, suc, value);
+        return recur_succ(t, root->left, root, value);
     }
     else {
         return recur_succ(t, root->right, suc, value);
@@ -164,32 +202,33 @@ node_ptr recur_succ(rbt_ptr t, node_ptr root, node_ptr suc, hash_value value)
 
 }
 
-node_ptr rbt_max(rbt_ptr t, node_ptr x)
+node *rbt_max(rbt *t, node *x)
 {
     while (x->right != t->nil)
         x = x->right;
     return x;
 }
 
-rbt_ptr new_rbt(void)
+rbt *new_rbt(void)
 {
-    rbt_ptr r;
-    r = (rbt_ptr) malloc(sizeof(rbt));
-    r->nil = (node_ptr) malloc(sizeof(node));
+    rbt *r;
+    r = (rbt *) malloc(sizeof(rbt));
+    r->nil = (node *) malloc(sizeof(node));
     r->nil->color = BLACK;
     r->nil->hv = -1;
     r->nil->cid = -1;
     r->root = r->nil;
     r->size = 0;
+    r->fs = NULL;
     return r;
 }
 
-node_ptr new_node(rbt_ptr t, cache_id cid, hash_value hv, rbt_node_color color)
+node *new_node(rbt *t, cache_id cid, hash_value hv, rbt_node_color color)
 {
 
-    node_ptr n;
+    node *n;
 
-    n = (node_ptr) malloc(sizeof(node));
+    n = (node *) malloc(sizeof(node));
     n->color = color;
 
     n->color = color;
@@ -204,9 +243,9 @@ node_ptr new_node(rbt_ptr t, cache_id cid, hash_value hv, rbt_node_color color)
     return n;
 }
 
-void left_rotate(rbt_ptr t, node_ptr x)
+void left_rotate(rbt *t, node *x)
 {
-    node_ptr y = x->right;
+    node *y = x->right;
     x->right = y->left;
     if (y->left != t->nil)
         y->left->parent = x;
@@ -221,9 +260,9 @@ void left_rotate(rbt_ptr t, node_ptr x)
     x->parent = y;
 }
 
-void right_rotate(rbt_ptr t, node_ptr y)
+void right_rotate(rbt *t, node *y)
 {
-    node_ptr x = y->left;
+    node *x = y->left;
     y->left = x->right;
     if (x->right != t->nil)
         x->right->parent = y;
@@ -238,11 +277,11 @@ void right_rotate(rbt_ptr t, node_ptr y)
     y->parent = x;
 }
 
-void rbt_insert(rbt_ptr t, node_ptr z)
+void rbt_insert(rbt *t, node *z)
 {
     t->size++;
-    node_ptr x = t->root;
-    node_ptr y = t->nil;
+    node *x = t->root;
+    node *y = t->nil;
     while (x != t->nil) {
         y = x;
         if (z->hv < x->hv)
@@ -261,11 +300,12 @@ void rbt_insert(rbt_ptr t, node_ptr z)
     z->right = t->nil;
     z->color = RED;
     rbt_insert_fixup(t, z);
+    flatten_slavelist(t);
 }
 
-void rbt_insert_fixup(rbt_ptr t, node_ptr z)
+void rbt_insert_fixup(rbt *t, node *z)
 {
-    node_ptr y;
+    node *y;
     while (z->parent->color == RED) {
         if (z->parent == z->parent->parent->left) {
             y = z->parent->parent->right;
@@ -307,7 +347,7 @@ void rbt_insert_fixup(rbt_ptr t, node_ptr z)
     t->root->color = BLACK;
 }
 
-void rbt_transplant(rbt_ptr t, node_ptr u, node_ptr v)
+void rbt_transplant(rbt *t, node *u, node *v)
 {
     if (u->parent == t->nil) {
         t->root = v;
@@ -320,17 +360,17 @@ void rbt_transplant(rbt_ptr t, node_ptr u, node_ptr v)
     v->parent = u->parent;
 }
 
-node_ptr rbt_min(rbt_ptr t, node_ptr x)
+node *rbt_min(rbt *t, node *x)
 {
     while (x->left != t->nil)
         x = x->left;
     return x;
 }
 
-void rbt_delete(rbt_ptr t, node_ptr z)
+void rbt_delete(rbt *t, node *z)
 {
     t->size--;
-    node_ptr x, y = z;
+    node *x, *y = z;
     rbt_node_color y_orig_col = y->color;
     if (z->left == t->nil) {
         x = z->right;
@@ -362,9 +402,9 @@ void rbt_delete(rbt_ptr t, node_ptr z)
     free(z);
 }
 
-void rbt_delete_fixup(rbt_ptr t, node_ptr x)
+void rbt_delete_fixup(rbt *t, node *x)
 {
-    node_ptr w;
+    node *w;
     while (x != t->root && x->color == BLACK) {
         if (x == x->parent->left) {
             w = x->parent->right;
@@ -451,14 +491,14 @@ uint64_t hash(unsigned long key)
 }
 
 
-void recur_free_rbt(rbt_ptr t, node_ptr n)
+void recur_free_rbt(rbt *t, node *n)
 {
     if (n->left != t->nil) recur_free_rbt(t, n->left);
     if (n->right != t->nil) recur_free_rbt(t, n->right);
     free(n);
 }
 
-void free_rbt(rbt_ptr t)
+void free_rbt(rbt *t)
 {
     recur_free_rbt(t, t->root);
     free(t->nil);

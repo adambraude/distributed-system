@@ -13,18 +13,18 @@ extern char **slave_addresses;
  * each slave will keep a linked list of vector IDs indicating which
  * vector it has (could also keep record of the vector itself)
  */
-typedef struct slave_vector {
-    unsigned int id;
-    struct slave_vector *next;
-} slave_vector;
+// typedef struct slave_vector {
+//     unsigned int id;
+//     struct slave_vector *next;
+// } slave_vector;
 
-typedef struct slave {
-    unsigned int id;
-    char *address;
-    bool is_alive;
-    slave_vector *primary_vector_head; /* vectors that were assigned to this slave */
-    slave_vector *primary_vector_tail;
-} slave;
+// typedef struct slave {
+//     unsigned int id;
+//     char *address;
+//     bool is_alive;
+//     slave_vector *primary_vector_head; /* vectors that were assigned to this slave */
+//     slave_vector *primary_vector_tail;
+// } slave;
 
 typedef struct slave_ll {
     slave *slave_node;
@@ -43,7 +43,7 @@ int heartbeat(void);
 bool is_alive(char *);
 slave **get_machines_for_vector(unsigned int, bool);
 int send_vector(slave *, vec_id_t, slave*);
-void reallocate(void);
+void reallocate(slave *);
 int starfish(range_query_contents);
 int get_new_slave_id(void);
 slave *new_slave(char *address);

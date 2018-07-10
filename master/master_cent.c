@@ -24,7 +24,7 @@
 #define MS_DEBUG false
 
 /* Ring CH variables */
-rbt_ptr chash_table;
+rbt *chash_table;
 
 /* static partition variables */
 u_int num_keys; /* e.g., value of largest known key, plus 1 */

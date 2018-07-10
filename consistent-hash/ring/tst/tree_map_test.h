@@ -4,6 +4,6 @@
 #include "../src/table.h"
 #include "../src/tree_map.h"
 
-void bst_test(node_ptr);
+void bst_test(node *);
 
 #endif

@@ -14,8 +14,8 @@ int main(int argc, char *argv[])
     char *line = NULL;
     int cache_id, dupli;
     uint64_t hash_value;
-    rbt_ptr tree = new_rbt(); /* first node in the tree. */
-    node_ptr nodes[20];
+    rbt *tree = new_rbt(); /* first node in the tree. */
+    node *nodes[20];
     int counter = 0;
     while ((read = getline(&line, &read, fp)) != -1) {
         if (line[0] != '#') {
@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
             int i;
             for (i = 0; i < dupli; i++) {
                 hash_value = hash(cache_id + hash(i));
-                node_ptr n = new_node(tree, cache_id, hash_value, RED);
+                node *n = new_node(tree, cache_id, hash_value, RED);
                 nodes[counter++] = n;
                 rbt_insert(tree, n);
             }
@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
 /*
  * Verifies that the tree is an actual binary search tree.
  */
-void bst_test(node_ptr c)
+void bst_test(node *c)
 {
     int right = c->right->hv;
     assert((c->left->hv <= c->hv));

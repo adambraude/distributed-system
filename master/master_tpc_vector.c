@@ -5,6 +5,7 @@
 #include "tpc_master.h"
 #include "../rpc/vote.h"
 #include "../rpc/gen/slave.h"
+#include "../types/types.h"
 
 pthread_mutex_t lock;
 int successes;
@@ -165,6 +166,9 @@ bool is_alive(char *address)
 
 int send_vector(slave *slave_1, vec_id_t vec_id, slave *slave_2)
 {
+    if (M_DEBUG && vec_id == 4) {
+        printf("Sending v4 from %d->%d\n", slave_1->id, slave_2->id);
+    }
     CLIENT *cl = clnt_create(slave_1->address, COPY_OVER_VECTOR,
         COPY_OVER_VECTOR_V1, "tcp");
     if (cl == NULL) {

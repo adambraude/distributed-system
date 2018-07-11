@@ -28,19 +28,19 @@ test_put_vec(int queue_id, int vec_id, u_int64_t *vector, u_int vector_len)
 }
 
 // XXX: deprecate change to: test_put_vec, of any length
-void test_put_vec_len_1(int queue_id, int vec_id, unsigned long long vec) {
+void test_put_vec_len_1(int queue_id, int vec_id, u_int64_t vec) {
     vec_t *v = (vec_t *)malloc(sizeof(vec_t));
-    unsigned long long varr[] = {vec};
-    memcpy(v->vector, varr, sizeof(unsigned long long));
+    u_int64_t varr[] = {vec};
+    memcpy(v->vector, varr, sizeof(u_int64_t));
     v->vector[0] = vec;
     v->vector_length = 1;
     put_vector(queue_id, vec_id, v);
 }
 
-void test_put_vec_len_2(int queue_id, int vec_id, unsigned long long vec, unsigned long long vec2) {
+void test_put_vec_len_2(int queue_id, int vec_id, u_int64_t vec, u_int64_t vec2) {
     vec_t *v = (vec_t *)malloc(sizeof(vec_t));
-    unsigned long long varr[] = {vec, vec2};
-    memcpy(v->vector, varr, sizeof(unsigned long long) * 2);
+    u_int64_t varr[] = {vec, vec2};
+    memcpy(v->vector, varr, sizeof(u_int64_t) * 2);
     v->vector[0] = vec;
     v->vector[1] = vec2;
     v->vector_length = 2;
@@ -142,8 +142,8 @@ int main(int argc, char *argv[])
         }
         /* read queries */
         FILE *fp;
-        //fp = fopen("../tst_data/tpc/qs/.query_lt128.shuffled.dat", "r");
-        fp = fopen("../tst_data/tpc/qs/smalltest.dat", "r");
+        fp = fopen("../tst_data/tpc/qs/.query_lt128.shuffled.dat", "r");
+        //fp = fopen("../tst_data/tpc/qs/smalltest.dat", "r");
         if (fp == NULL) {
             puts("Error: could not open test file");
             return 1;

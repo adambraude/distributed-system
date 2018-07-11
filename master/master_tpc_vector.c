@@ -166,9 +166,9 @@ bool is_alive(char *address)
 
 int send_vector(slave *slave_1, vec_id_t vec_id, slave *slave_2)
 {
-    if (M_DEBUG && vec_id == 4) {
-        printf("Sending v4 from %d->%d\n", slave_1->id, slave_2->id);
-    }
+    // if (M_DEBUG && vec_id == 4) {
+    //     printf("Sending v4 from %d->%d\n", slave_1->id, slave_2->id);
+    // }
     CLIENT *cl = clnt_create(slave_1->address, COPY_OVER_VECTOR,
         COPY_OVER_VECTOR_V1, "tcp");
     if (cl == NULL) {
@@ -185,7 +185,8 @@ int send_vector(slave *slave_1, vec_id_t vec_id, slave *slave_2)
     int *res = send_vec_1(args, cl);
     clnt_destroy(cl);
     if (res == NULL || *res) {
-        printf("Failed to send vector %u\n", vec_id);
+        printf("Failed to send vector %u from %d to %d\n", vec_id,
+            slave_1->id, slave_2->id);
         return 1;
     }
     return *res;

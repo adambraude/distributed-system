@@ -135,23 +135,22 @@ query_result *rq_range_root(rq_range_root_args *query)
         return res;
     }
 
-    u_int64_t *result_vector = (u_int64_t *)
-        malloc(sizeof(u_int64_t) * largest_vector_len);
+    u_int64_t *result_vector;
+    u_int64_t a[largest_vector_len];
+    result_vector = a;
     memset(result_vector, 0, largest_vector_len * sizeof(u_int64_t));
     /* AND the first 2 vectors together */
-    result_vector_len = AND_WAH(result_vector,
+    result_vector_len = AND_WAH(result_vector, largest_vector_len,
         results[0]->vector.vector_val, results[0]->vector.vector_len,
         results[1]->vector.vector_val, results[1]->vector.vector_len) + 1;
 
     /* AND the subsequent vectors together */
     for (i = 2; i < num_threads; i++) {
-        u_int64_t *new_result_vector = (u_int64_t *)
-            malloc(sizeof(u_int64_t) * largest_vector_len);
+        u_int64_t new_result_vector[largest_vector_len];
         memset(new_result_vector, 0, sizeof(u_int64_t) * largest_vector_len);
-        result_vector_len = AND_WAH(new_result_vector, result_vector,
-            result_vector_len, results[i]->vector.vector_val,
+        result_vector_len = AND_WAH(new_result_vector, largest_vector_len,
+            result_vector, result_vector_len, results[i]->vector.vector_val,
             results[i]->vector.vector_len) + 1;
-        free(result_vector);
         result_vector = new_result_vector;
     }
 
@@ -162,7 +161,6 @@ query_result *rq_range_root(rq_range_root_args *query)
     res->vector.vector_val = arr; // XXX is this actually necessary
     memcpy(res->vector.vector_val, result_vector,
         result_vector_len * sizeof(u_int64_t));
-    free(result_vector);
     res->vector.vector_len = result_vector_len;
     return res;
 }

@@ -102,9 +102,6 @@ void flatten_slavelist(rbt *t)
     free(t->fs);
     t->fs = (slave **) malloc(sizeof(slave *) * t->size);
     recur_flatten_slavelist(t, t->root);
-    int i;
-    puts("printing slavelist");
-    for (i = 0; i < t->size; i++) printf("%d\n", t->fs[i]->id);
 }
 
 slave **ring_flattened_slavelist(rbt *t)

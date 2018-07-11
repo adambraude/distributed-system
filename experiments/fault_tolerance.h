@@ -4,7 +4,7 @@
  */
 #ifndef FAULT_TOLERANCE_H
 
-#define FT_NUM_QUERIES  3000
+#define FT_NUM_QUERIES  10
 #define FT_KILL_MODULUS 1000
 #define FT_NUM_VEC      1280     /* NB: bitmap workload max vector id = 1271 */
 #define FT_KILL_Q       FT_NUM_QUERIES / 2

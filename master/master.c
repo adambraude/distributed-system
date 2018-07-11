@@ -24,7 +24,6 @@
 u_int slave_id_counter = 0;
 partition_t partition;
 query_plan_t query_plan;
-u_int num_slaves;
 
 /* Ring CH variables */
 rbt *chash_table;
@@ -34,6 +33,15 @@ int *partition_scale_1, *partition_scale_2; /* partitions and backups */
 u_int num_keys; /* e.g., value of largest known key, plus 1 */
 int separation;
 
+int get_num_slaves()
+{
+    switch (partition) {
+        case RING_CH:
+            return chash_table->size;
+        default:
+            return 0;
+    }
+}
 /**
  * Master Process
  *
@@ -47,8 +55,7 @@ int main(int argc, char *argv[])
 
     int c;
     int slave_cnt = fill_slave_arr(SLAVELIST_PATH, &slave_addresses);
-
-    if (num_slaves == -1) {
+    if (slave_cnt == -1) {
         puts("Master: could not register slaves, exiting...");
         return 1;
     }
@@ -69,7 +76,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    if (num_slaves == 1) replication_factor = 1;
+    if (get_num_slaves() == 1) replication_factor = 1;
 
 
     /* Message queue setup */
@@ -103,13 +110,13 @@ int main(int argc, char *argv[])
         /* For experiment: if a certain query 0 by the modulus is reached,
          * kill a slave */
 
-        if (qnum > 0 && qnum % FT_KILL_MODULUS == 0 && num_slaves > 2) {
+        if (qnum > 0 && qnum % FT_KILL_MODULUS == 0 && get_num_slaves() > 2) {
             switch (FT_EXP_TYPE) {
                 case ORDERED:
                     kill_slave(slaves_to_die[slave_death_index++]);
                     break;
                 case RANDOM_SLAVE:
-                    kill_random_slave(num_slaves);
+                    kill_random_slave(get_num_slaves());
                     break;
                 default:
                     break;
@@ -254,7 +261,7 @@ int starfish(range_query_contents contents)
         // start of range is number of vectors
         u_int range_len = range[1] - range[0] + 1;
         range_array[array_index++] = range_len;
-        u_int **machine_vec_ptrs = (u_int **) malloc(sizeof(int *) * range_len);
+        u_int *machine_vec_ptrs[range_len];
         for (j = range[0]; j <= range[1]; j++) {
             slave **tuple = get_machines_for_vector(j, false);
             if (flip) {
@@ -263,9 +270,10 @@ int starfish(range_query_contents contents)
                 tuple[1] = temp;
             }
             int mvp_addr = j - range[0];
-            machine_vec_ptrs[mvp_addr] = (u_int *) malloc(sizeof(u_int) * 2);
-            machine_vec_ptrs[mvp_addr][0] = tuple[0]->id;
-            machine_vec_ptrs[mvp_addr][1] = j;
+            u_int arr[2];
+            arr[0] = tuple[0]->id;
+            arr[1] = j;
+            machine_vec_ptrs[mvp_addr] = arr;
             free(tuple);
         }
 
@@ -281,10 +289,6 @@ int starfish(range_query_contents contents)
             range_array[array_index++] = machine_vec_ptrs[tuple_index][1];
         }
 
-        for (j = range[0]; j <= range[1]; j++) {
-            free(machine_vec_ptrs[j - range[0]]);
-        }
-        free(machine_vec_ptrs);
     }
     return init_range_query(range_array, contents.num_ranges,
         contents.ops, array_index);
@@ -302,9 +306,9 @@ int heartbeat()
         case RING_CH: {
             slave **slavelist = ring_flattened_slavelist(chash_table);
             int i;
-            for (i = 0; i < num_slaves; i++) {
+            for (i = 0; i < get_num_slaves(); i++) {
                 if (!is_alive(slavelist[i]->address)) {
-                    if (--num_slaves > 1) {
+                    if (get_num_slaves() > 1) {
                         struct timespec start, end;
                         clock_gettime(CLOCK_REALTIME, &start);
                         reallocate(slavelist[i]);
@@ -423,12 +427,12 @@ slave **get_machines_for_vector(vec_id_t vec_id, bool updating)
         }
 
         case STATIC_PARTITION: {
-            u_int *machines = (u_int *)
-                malloc(sizeof(u_int) * replication_factor);
-            int index = vec_id / separation;
-            assert(index >= 0 && index < num_slaves);
-            machines[0] = partition_scale_1[index];
-            machines[1] = partition_scale_2[index];
+            // u_int *machines = (u_int *)
+            //     malloc(sizeof(u_int) * replication_factor);
+            // int index = vec_id / separation;
+            // assert(index >= 0 && index < num_slaves);
+            // machines[0] = partition_scale_1[index];
+            // machines[1] = partition_scale_2[index];
             // return machines;
             return NULL;
         }

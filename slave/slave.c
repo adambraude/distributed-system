@@ -23,7 +23,7 @@
 
 char **slave_addresses = NULL;
 
-#define SLAVE_DEBUG true
+#define SLAVE_DEBUG false
 #define SLAVE_ERR true
 
 query_result *get_vector(u_int vec_id)
@@ -58,7 +58,7 @@ bool query_res_valid(rq_pipe_args *query_ptr, u_int64_t **result_val,
     if (query_ptr == NULL) { // ...
 
     }
-    u_int v_len = max(this_result->vector.vector_len,
+    int v_len = max(this_result->vector.vector_len,
         next_result->vector.vector_len);
     u_int64_t arr[v_len];
     *result_val = arr;
@@ -66,14 +66,14 @@ bool query_res_valid(rq_pipe_args *query_ptr, u_int64_t **result_val,
     rq_pipe_args query = *query_ptr;
     int res;
     if (query.op == '|') {
-        res = OR_WAH(*result_val,
+        res = OR_WAH(*result_val, v_len,
             this_result->vector.vector_val, this_result->vector.vector_len,
             next_result->vector.vector_val, next_result->vector.vector_len) + 1;
         *result_len_ptr = res;
         return res >= 0 ? true : false;
     }
     else if (query.op == '&') {
-        res = AND_WAH(*result_val,
+        res = AND_WAH(*result_val, v_len,
             this_result->vector.vector_val, this_result->vector.vector_len,
             next_result->vector.vector_val, next_result->vector.vector_len) + 1;
         *result_len_ptr = res;

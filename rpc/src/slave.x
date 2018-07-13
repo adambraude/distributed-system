@@ -22,7 +22,7 @@ struct rq_pipe_args {
 struct query_result {
     unsigned hyper int vector<>;
     unsigned int exit_code;
-    string error_message<128>;
+    string error_message<>;
 };
 
 program REMOTE_QUERY_PIPE {

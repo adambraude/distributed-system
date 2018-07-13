@@ -22,9 +22,14 @@
 #include <stdbool.h>
 
 char **slave_addresses = NULL;
+u_int slave_id;
 
-#define SLAVE_DEBUG false
+
+#define SLAVE_DEBUG true
+#define ERRMESS_DEBUG true
 #define SLAVE_ERR true
+#define TIMEOUT_DEBUG false
+#define TIMEOUT 5
 
 query_result *get_vector(u_int vec_id)
 {
@@ -38,9 +43,13 @@ query_result *get_vector(u_int vec_id)
         res->vector.vector_len = 0;
         res->exit_code = EXIT_FAILURE;
         char buf[128];
-        snprintf(buf, 128, "Error: could not locate vector %d on machine %s\n",
-            vec_id, slave_addresses[slave_id]);
+        snprintf(buf, 128, "Error: could not locate vector %u on slave %u\n",
+            vec_id, slave_id);
         res->error_message = buf;
+        strcpy(res->error_message, buf);
+        if (ERRMESS_DEBUG) {
+            printf("Failed to find v_%u\n", vec_id);
+        }
         return res;
     }
     res->vector.vector_val = vector->vector;
@@ -55,9 +64,10 @@ bool query_res_valid(rq_pipe_args *query_ptr, u_int64_t **result_val,
     query_result *this_result, query_result *next_result,
     int *result_len_ptr)
 {
-    if (query_ptr == NULL) { // ...
-
-    }
+    // if (query_ptr == NULL || result_val == NULL || this_result) { // ...
+    //
+    // }
+    if (SLAVE_DEBUG) puts("Checking validity");
     int v_len = max(this_result->vector.vector_len,
         next_result->vector.vector_len);
     u_int64_t arr[v_len];
@@ -87,12 +97,16 @@ query_result *query_err_res(rq_pipe_args *query_ptr)
 {
     query_result *res = (query_result *)
         malloc(sizeof(query_result));
-    char buf[32];
-    snprintf(buf, 32, "Unknown operator %c", query_ptr->op);
+    char buf[128];
+    snprintf(buf, 128, "Unknown operator %c", query_ptr->op);
     res->vector.vector_val = NULL;
     res->vector.vector_len = 0;
     res->error_message = buf;
+    strcpy(res->error_message, buf);
     res->exit_code = EXIT_FAILURE;
+    if (ERRMESS_DEBUG) {
+        puts("Query err res");
+    }
     return res;
 }
 
@@ -116,18 +130,25 @@ query_result *failed_slave_res(query_result *res, char *addr)
     snprintf(error_message, 64,
         "Error: No response from machine %s\n", addr);
     res->error_message = error_message;
+    strcpy(res->error_message, error_message);
     return res;
 }
 
 query_result *success_res(query_result *res)
 {
     res->exit_code = EXIT_SUCCESS;
-    res->error_message = "";
+    char msg[16];
+    snprintf(msg, 16, "<no error>");
+    res->error_message = msg;
+    strcpy(res->error_message, msg);
     return res;
 }
 
 query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
 {
+    // if (TIMEOUT_DEBUG) {
+    //     sleep(TIMEOUT + 1); // trigger timout
+    // }
     query_result *this_result = get_vector(query.vec_id), *next_result = NULL;
     /* Something went wrong with reading the vector,
      * or we're in the final call */
@@ -141,7 +162,7 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
         /* process vectors on this machine */
         while (query.machine_no == slave_id) {
             next_result = get_vector(query.vec_id);
-            if (next_result->exit_code == EXIT_FAILURE) {
+            if (next_result->exit_code != EXIT_SUCCESS) {
                 if (SLAVE_ERR)
                     printf("Error: vector %u not found\n", query.vec_id);
                 return next_result;
@@ -152,10 +173,9 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
 
             if (!query_res_valid(&query, &result_val, this_result, next_result,
                 &result_len)) {
-                puts("Error: invalid result");
+                if (SLAVE_ERR) puts("Error: invalid result");
                 free(this_result);
                 free(next_result);
-                puts("freed");
                 return query_err_res(&query);
             }
 
@@ -184,11 +204,11 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
             struct timeval tv;
             tv.tv_sec = TIME_TO_VOTE * 5;
             tv.tv_usec = 0;
-            clnt_control(client, CLSET_TIMEOUT, &tv);
+            //clnt_control(client, CLSET_TIMEOUT, &tv);
             if (SLAVE_DEBUG)
-               printf("RPCing %s, vec %u\n", slave_addresses[query.machine_no], query.vec_id);
+               printf("RPCing %d, vec %u\n", query.machine_no, query.vec_id);
             next_result = rq_pipe_1(query, client);
-            clnt_destroy(client);
+            // clnt_destroy(client);
             if (next_result == NULL) {
                 if (SLAVE_ERR) puts("Failed to obtain next result.");
                 //clnt_perror(client, "Recursive pipe call failed");
@@ -199,11 +219,10 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
     }
 
     /* Something went wrong with the recursive call. */
-    if (next_result->exit_code != EXIT_SUCCESS) {
+    if (next_result != NULL && next_result->exit_code != EXIT_SUCCESS) {
         if (SLAVE_ERR)
-            printf("Recursive call error: %s", next_result->error_message);
+            printf("Recursive call error: %s\n", next_result->error_message);
         free(this_result);
-        puts("recursive call failed");
         return next_result;
     }
 
@@ -312,7 +331,7 @@ int *send_vec_1_svc(copy_vector_args copy_args, struct svc_req *req)
     }
     memcpy(&args.vector, &qres->vector, sizeof(qres->vector));
     if (SLAVE_DEBUG)
-        printf("Sending vector %u to %s\n", copy_args.vec_id, slave_addresses[copy_args.destination_no]);
+        printf("Sending vector %u to slave %u\n", copy_args.vec_id, copy_args.destination_no);
     int *res = commit_vec_1(args, cl);
     free(qres);
     return res;
@@ -326,16 +345,4 @@ int *kill_order_1_svc(int arg, struct svc_req *req)
 {
     printf("Slave %d exiting\n", slave_id);
     exit(0);
-}
-
-/**
- * Local helper function, returning a no-response message from the machine
- * of the given name.
- */
-char *machine_failure_msg(char *machine_name)
-{
-    char *error_message = (char *) malloc(sizeof(char) * 64);
-    snprintf(error_message, 64,
-        "Error: No response from machine %s\n", machine_name);
-    return error_message;
 }

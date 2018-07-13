@@ -36,9 +36,9 @@ int kill_random_slave(int num_slaves) {
     return kill_slave(death_index);
 }
 
-int kill_slave(int slave_id) {
+int kill_slave(u_int slave_id) {
     if (M_DEBUG)
-        printf("Killing slave %d\n", slave_id);
+        printf("Killing slave %u\n", slave_id);
     CLIENT *cl = clnt_create(slave_addresses[slave_id],
         KILL_SLAVE, KILL_SLAVE_V1, "tcp");
     if (cl == NULL) return -1;
@@ -120,6 +120,7 @@ query_result *rq_range_root(rq_range_root_args *query)
     for (i = 0; i < num_threads; i++) {
         /* assuming a single point of failure, report on the failed slave */
         if (results[i]->exit_code != EXIT_SUCCESS) {
+            printf("%s\n", results[i]->error_message);
             return results[i];
         }
         largest_vector_len = max(largest_vector_len,
@@ -185,12 +186,14 @@ void *init_coordinator_thread(void *coord_args) {
 
     if (clnt == NULL) {
         clnt_pcreateerror(slave_addresses[args->args->machine_no]);
+        puts("Failed to create client");
+        return (void *) EXIT_FAILURE;
     }
     /* give the request a time-to-live */
     struct timeval tv;
     tv.tv_sec = TIME_TO_VOTE * 5;
     tv.tv_usec = 0;
-    clnt_control(clnt, CLSET_TIMEOUT, &tv);
+    //clnt_control(clnt, CLSET_TIMEOUT, &tv);
     query_result *res = rq_pipe_1(*(args->args), clnt);
     if (res == NULL) {
         clnt_perror(clnt, "call failed: ");

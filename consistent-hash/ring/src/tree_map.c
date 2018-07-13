@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include "tree_map.h"
 #include <math.h>
+#include <assert.h>
 
 /* RBT op prototypes */
 /* RBT initialization functions */
@@ -117,8 +118,7 @@ slave **ring_flattened_slavelist(rbt *t)
  */
 node *pred(rbt *t, hash_value value)
 {
-    node *n = t->root;
-    node *pr = t->nil;
+    node *n = t->root, *pr = t->nil;
     while (n->hv != value) {
         if (value > n->hv) {
             pr = n;
@@ -129,10 +129,10 @@ node *pred(rbt *t, hash_value value)
         }
     }
     if (n == rbt_min(t, t->root)) return rbt_max(t, t->root);
-    if (pr == t->nil) { // we didn't go right: find rightmost node of left subtree
-        pr = n->left;
-        while (pr->right != t->nil) pr = pr->right;
-    }
+    if (n->left == t->nil && pr != t->nil) return pr;
+    //  find rightmost node of left subtree
+    pr = n->left;
+    while (pr->right != t->nil) pr = pr->right;
     return pr;
 }
 
@@ -165,7 +165,7 @@ void print_tree(rbt *t, node *c)
 {
     if (c == t->nil) return;
     print_tree(t, c->left);
-    printf("ID: %u Hash: %lld\n", c->slv->id, c->hv);
+    printf("ID: %3u Hash: %20lld\n", c->slv->id, c->hv);
     print_tree(t, c->right);
 }
 
@@ -212,8 +212,8 @@ rbt *new_rbt(void)
     r = (rbt *) malloc(sizeof(rbt));
     r->nil = (node *) malloc(sizeof(node));
     r->nil->color = BLACK;
-    r->nil->hv = -1;
-    r->nil->cid = -1;
+    r->nil->hv = 0;
+    r->nil->cid = 0;
     r->root = r->nil;
     r->size = 0;
     r->fs = NULL;
@@ -274,6 +274,22 @@ void right_rotate(rbt *t, node *y)
     y->parent = x;
 }
 
+void recur_assert_parentage(rbt *t, node *n)
+{
+    if (n->right != t->nil) {
+        assert(n->right->parent == n);
+        recur_assert_parentage(t, n->right);
+    }
+    if (n->left != t->nil) {
+        assert(n->left->parent == n);
+        recur_assert_parentage(t, n->left);
+    }
+}
+void assert_parentage(rbt *t)
+{
+    recur_assert_parentage(t, t->root);
+}
+
 void rbt_insert(rbt *t, node *z)
 {
     t->size++;
@@ -298,6 +314,7 @@ void rbt_insert(rbt *t, node *z)
     z->color = RED;
     rbt_insert_fixup(t, z);
     flatten_slavelist(t);
+    // assert_parentage(t);
 }
 
 void rbt_insert_fixup(rbt *t, node *z)

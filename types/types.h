@@ -13,12 +13,12 @@ typedef struct vec_t {
 } vec_t;
 
 typedef struct slave_vector {
-    unsigned int id;
+    u_int id;
     struct slave_vector *next;
 } slave_vector;
 
 typedef struct slave {
-    unsigned int id;
+    u_int id;
     char *address;
     bool is_alive;
     slave_vector *primary_vector_head; /* vectors that were assigned to this slave */

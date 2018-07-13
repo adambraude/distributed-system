@@ -20,13 +20,16 @@
 #include "../experiments/fault_tolerance.h"
 
 /* variables for use in all master functions */
-//slave_ll *slavelist;
 u_int slave_id_counter = 0;
 partition_t partition;
 query_plan_t query_plan;
+u_int test_no = 5;
+
 
 /* Ring CH variables */
 rbt *chash_table;
+
+#define REAL_DEBUG false
 
 /* static partition variables */
 int *partition_scale_1, *partition_scale_2; /* partitions and backups */
@@ -68,13 +71,36 @@ int main(int argc, char *argv[])
     slave *s;
     for (i = 0; i < slave_cnt; i++) {
         s = new_slave(slave_addresses[i]);
-        if (setup_slave(s) && partition == RING_CH) { /* connected to slave? */
-            insert_slave(chash_table, s);
+        if (setup_slave(s)) {
+            if (partition == RING_CH) { /* connected to slave? */
+                insert_slave(chash_table, s);
+            }
         }
         else {
             printf("Failed to setup slave %s\n", slave_addresses[i]);
         }
     }
+
+    // bool INIT_TEST = true;
+    // print_tree(chash_table, chash_table->root);
+    //
+    // puts("printing slave list");
+    // u_int succ_id = ring_get_succ_slave(chash_table, 0)->id;
+    // printf("[succ] base = 0\n");
+    // while (succ_id != 0) {
+    //     printf("succ = %u\n", succ_id);
+    //     succ_id = ring_get_succ_slave(chash_table, succ_id)->id;
+    // }
+    // u_int pred_id = ring_get_pred_slave(chash_table, 0)->id;
+    // printf("[pred] base = 0\n");
+    // int ctr = 0;
+    // while (pred_id != 0) {
+    //     printf("pred = %u\n", pred_id);
+    //     u_int old = pred_id;
+    //     pred_id = ring_get_pred_slave(chash_table, pred_id)->id;
+    //     if (ctr++ > chash_table->size) return 1;
+    // }
+    // return 1;
 
     if (get_num_slaves() == 1) replication_factor = 1;
 
@@ -107,25 +133,25 @@ int main(int argc, char *argv[])
     while (qnum < FT_NUM_QUERIES) {
         msgctl(msq_id, IPC_STAT, &buf);
 
-        /* For experiment: if a certain query 0 by the modulus is reached,
-         * kill a slave */
+        if (buf.msg_qnum > 0) {
+            /* For experiment: if a certain query 0 by the modulus is reached,
+             * kill a slave */
 
-        if (qnum > 0 && qnum % FT_KILL_MODULUS == 0 && get_num_slaves() > 2) {
-            switch (FT_EXP_TYPE) {
-                case ORDERED:
-                    kill_slave(slaves_to_die[slave_death_index++]);
-                    break;
-                case RANDOM_SLAVE:
-                    kill_random_slave(get_num_slaves());
-                    break;
-                default:
-                    break;
+            if (qnum > 0 && qnum % FT_KILL_MODULUS == 0) {
+                switch (FT_EXP_TYPE) {
+                    case ORDERED:
+                        kill_slave(slave_death_index++);
+                        break;
+                    case RANDOM_SLAVE:
+                        kill_random_slave(get_num_slaves());
+                        break;
+                    default:
+                        break;
+                }
+
             }
 
-        }
-
-        heartbeat(); // TODO: this can be called elsewhere
-        if (buf.msg_qnum > 0) {
+            heartbeat(); /* ensure slaves can be called */
 
             request = (struct msgbuf *) malloc(sizeof(msgbuf));
             /* Grab from queue. */
@@ -190,7 +216,7 @@ int main(int argc, char *argv[])
                 }
                 */
                 if (M_DEBUG)
-                    printf("%ld: Range query %d took %lu mus\n",
+                    printf("%ld: Range query %d took %8lu mus\n",
                         end.tv_sec, qnum, dt);
                 qnum++;
             }
@@ -212,18 +238,6 @@ int main(int argc, char *argv[])
     printf("Avg time postkill: %fms, stdev = %fms\n",
         postkill_avg, postkill_stdev);
     */
-    /* deallocation */
-    // while (slavelist != NULL) {
-    //     free(slavelist->slave_node->address);
-    //     free(slavelist->slave_node);
-    //     slave_ll *temp = slavelist->next;
-    //     free(slavelist);
-    //     slavelist = temp;
-    // }
-    // if (dead_slave != NULL) {
-    //     free(dead_slave->address);
-    //     free(dead_slave);
-    // }
 }
 
 double stdev(u_int64_t *items, double avg, int N) {
@@ -261,7 +275,7 @@ int starfish(range_query_contents contents)
         // start of range is number of vectors
         u_int range_len = range[1] - range[0] + 1;
         range_array[array_index++] = range_len;
-        u_int *machine_vec_ptrs[range_len];
+        u_int **machine_vec_ptrs = (u_int **) malloc(sizeof(int *) * range_len);
         for (j = range[0]; j <= range[1]; j++) {
             slave **tuple = get_machines_for_vector(j, false);
             if (flip) {
@@ -270,10 +284,9 @@ int starfish(range_query_contents contents)
                 tuple[1] = temp;
             }
             int mvp_addr = j - range[0];
-            u_int arr[2];
-            arr[0] = tuple[0]->id;
-            arr[1] = j;
-            machine_vec_ptrs[mvp_addr] = arr;
+            machine_vec_ptrs[mvp_addr] = (u_int *) malloc(sizeof(u_int) * 2);
+            machine_vec_ptrs[mvp_addr][0] = tuple[0]->id;
+            machine_vec_ptrs[mvp_addr][1] = j;
             free(tuple);
         }
 
@@ -289,9 +302,23 @@ int starfish(range_query_contents contents)
             range_array[array_index++] = machine_vec_ptrs[tuple_index][1];
         }
 
+        for (j = range[0]; j <= range[1]; j++) {
+            free(machine_vec_ptrs[j - range[0]]);
+        }
+        free(machine_vec_ptrs);
     }
     return init_range_query(range_array, contents.num_ranges,
         contents.ops, array_index);
+}
+
+void master_cleanup()
+{
+    switch (partition) {
+        case RING_CH: {
+            free_rbt(chash_table);
+            break;
+        }
+    }
 }
 
 /**
@@ -308,7 +335,7 @@ int heartbeat()
             int i;
             for (i = 0; i < get_num_slaves(); i++) {
                 if (!is_alive(slavelist[i]->address)) {
-                    if (get_num_slaves() > 1) {
+                    if (get_num_slaves() > replication_factor) {
                         struct timespec start, end;
                         clock_gettime(CLOCK_REALTIME, &start);
                         reallocate(slavelist[i]);
@@ -329,9 +356,14 @@ int heartbeat()
             break;
         }
     }
-
+    if (get_num_slaves() == 0) {
+        puts("Master: no slaves remain, exiting");
+        master_cleanup(); // TODO
+        exit(0);
+    }
     return 0;
 }
+
 
 /**
  * Reallocate vectors such that each is replicated at least r times,
@@ -345,21 +377,24 @@ void reallocate(slave *dead_slave)
             slave *succ = ring_get_succ_slave(chash_table, dead_slave->id);
             slave *sucsuc = ring_get_succ_slave(chash_table, succ->id);
 
-            if (M_DEBUG) puts("pred -> succ");
+
+            // if (M_DEBUG) puts("pred -> succ");
             slave_vector *vec;
             /* transfer predecessor's nodes to successor */
             if (pred != succ) {
                 vec = pred->primary_vector_head;
                 for (; vec != NULL; vec = vec->next) {
+                    //if (vec->id == test_no) printf("p:%u s:%u v:%u", pred->id, succ->id, test_no);
                     send_vector(pred, vec->id, succ);
                 }
             }
 
-            if (M_DEBUG) puts("suc -> sucsuc");
+            // if (M_DEBUG) puts("suc -> sucsuc");
             /* transfer successor's nodes to its successor */
             if (succ != sucsuc) {
                 vec = dead_slave->primary_vector_head;
                 for (; vec != NULL; vec = vec->next) {
+                    //if (vec->id == test_no) printf("s:%u ss:%u v:%u", succ->id, sucsuc->id, test_no);
                     send_vector(succ, vec->id, sucsuc);
                 }
             }
@@ -368,8 +403,7 @@ void reallocate(slave *dead_slave)
             succ->primary_vector_tail->next = dead_slave->primary_vector_head;
             succ->primary_vector_tail = dead_slave->primary_vector_tail;
 
-            printf("Reallocated after %s died\n",
-                slave_addresses[dead_slave->id]);
+
             break;
         }
 

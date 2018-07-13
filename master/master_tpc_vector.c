@@ -130,7 +130,7 @@ bool setup_slave(slave *slv)
     CLIENT *cl = clnt_create(slv->address, SETUP_SLAVE, SETUP_SLAVE_V1,
         "tcp");
     if (cl == NULL) {
-        return 1;
+        return false;
     }
     init_slave_args *args = (init_slave_args *)
         malloc(sizeof(init_slave_args));
@@ -155,10 +155,10 @@ bool is_alive(char *address)
     if (cl == NULL) {
         return false;
     }
-    struct timeval tv;
-    tv.tv_sec = 1;
-    tv.tv_usec = 0;
-    clnt_control(cl, CLSET_TIMEOUT, &tv);
+    // struct timeval tv;
+    // tv.tv_sec = 1;
+    // tv.tv_usec = 0;
+    // clnt_control(cl, CLSET_TIMEOUT, &tv);
     int *res = stayin_alive_1(0, cl);
     clnt_destroy(cl);
     return res_valid(res);
@@ -166,8 +166,10 @@ bool is_alive(char *address)
 
 int send_vector(slave *slave_1, vec_id_t vec_id, slave *slave_2)
 {
-    // if (M_DEBUG && vec_id == 4) {
-    //     printf("Sending v4 from %d->%d\n", slave_1->id, slave_2->id);
+    // u_int test_no = 5;
+    //
+    // if (M_DEBUG && vec_id == test_no) {
+    //     printf("Sending v%u from %u->%u\n", test_no, slave_1->id, slave_2->id);
     // }
     CLIENT *cl = clnt_create(slave_1->address, COPY_OVER_VECTOR,
         COPY_OVER_VECTOR_V1, "tcp");
@@ -187,6 +189,7 @@ int send_vector(slave *slave_1, vec_id_t vec_id, slave *slave_2)
     if (res == NULL || *res) {
         printf("Failed to send vector %u from %d to %d\n", vec_id,
             slave_1->id, slave_2->id);
+        exit(0);
         return 1;
     }
     return *res;

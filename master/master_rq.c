@@ -68,7 +68,7 @@ init_range_query(unsigned int *range_array, int num_ranges,
 
     free(root);
     free(range_array);
-    return EXIT_SUCCESS;
+    return res->exit_code;
 }
 
 query_result *rq_range_root(rq_range_root_args *query)
@@ -166,18 +166,6 @@ query_result *rq_range_root(rq_range_root_args *query)
     return res;
 }
 
-/**
- * Local helper function, returning a no-response message from the machine
- * of the given name.
- */
-char *machine_failure_msg(char *machine_name)
-{
-    char *error_message = (char *) malloc(sizeof(char) * 64);
-    snprintf(error_message, 64,
-        "Error: No response from machine %s\n", machine_name);
-    return error_message;
-}
-
 void *init_coordinator_thread(void *coord_args) {
     coord_thread_args *args = (coord_thread_args *) coord_args;
 
@@ -200,8 +188,9 @@ void *init_coordinator_thread(void *coord_args) {
         /* Report that this machine failed */
         res = (query_result *) malloc(sizeof(query_result));
         res->exit_code = EXIT_FAILURE;
-        res->error_message = machine_failure_msg(slave_addresses[
-            args->args->machine_no]);
+        char buf[64];
+        snprintf(buf, 64, "Error: No response from slave %u",
+            args->args->machine_no);
     }
     results[args->query_result_index] = res;
     clnt_destroy(clnt);

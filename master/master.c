@@ -18,6 +18,8 @@
 #include "../consistent-hash/ring/src/tree_map.h"
 #include "../util/ds_util.h"
 #include "../experiments/fault_tolerance.h"
+#include "../experiments/exper.h"
+
 
 /* variables for use in all master functions */
 u_int slave_id_counter = 0;
@@ -45,6 +47,9 @@ int get_num_slaves()
             return 0;
     }
 }
+
+FILE *ft_real_out;
+
 /**
  * Master Process
  *
@@ -113,22 +118,29 @@ int main(int argc, char *argv[])
     struct msqid_ds buf;
     u_int64_t pre_kill_times[FT_PREKILL_Q], post_kill_times[FT_POSTKILL_Q];
     u_int64_t pre_kill_tot = 0, post_kill_tot = 0;
-
-    /* fault tolerance experiment output file */
-    FILE *ft_exp_out;
-    time_t rawtime;
-    struct tm *timeinfo;
-    time(&rawtime);
-    timeinfo = localtime(&rawtime);
-    char *timestamp = asctime(timeinfo) + 11; /* skip month and day */
-    timestamp[strlen(timestamp) - 6] = '\0'; /* trim year */
-    char outfile_nmbuf[36];
-    snprintf(outfile_nmbuf, 36, "%s%s.csv", FT_OUT_PREFIX, timestamp);
-    ft_exp_out = fopen(outfile_nmbuf, "w");
-    char *first_ln = "qnum,time,sum\n";
-    fwrite(first_ln, sizeof(char), strlen(first_ln), ft_exp_out);
-    u_int64_t sum_dt = 0;
     int slave_death_index = 0;
+    FILE *ft_exp_out;
+    u_int64_t sum_dt = 0;
+
+
+
+    if (EXPERIMENT_TYPE == FAULT_TOLERANCE) {
+        /* fault tolerance experiment output files */
+        time_t rawtime;
+        struct tm *timeinfo;
+        time(&rawtime);
+        timeinfo = localtime(&rawtime);
+        char *timestamp = asctime(timeinfo) + 11; /* skip month and day */
+        timestamp[strlen(timestamp) - 6] = '\0'; /* trim year */
+        char outfile_nmbuf[36];
+        snprintf(outfile_nmbuf, 36, "%s%s.csv", FT_OUT_PREFIX, timestamp);
+        ft_exp_out = fopen(outfile_nmbuf, "w");
+        fprintf(ft_exp_out, "qnum,time,sum\n");
+        char real_buf[32];
+        snprintf(real_buf, 32, "ft-real-%s.csv", timestamp);
+        ft_real_out = fopen(real_buf, "w");
+        fprintf(ft_real_out, "time\n");
+    }
 
     while (qnum < FT_NUM_QUERIES) {
         msgctl(msq_id, IPC_STAT, &buf);
@@ -137,9 +149,10 @@ int main(int argc, char *argv[])
             /* For experiment: if a certain query 0 by the modulus is reached,
              * kill a slave */
 
-            if (qnum > 0 && qnum % FT_KILL_MODULUS == 0) {
+            if (EXPERIMENT_TYPE == FAULT_TOLERANCE &&
+                qnum > 0 && qnum % FT_KILL_MODULUS == 0) {
                 switch (FT_EXP_TYPE) {
-                    case ORDERED:
+                    case ORDERED_BY_ID:
                         kill_slave(slave_death_index++);
                         break;
                     case RANDOM_SLAVE:
@@ -179,10 +192,12 @@ int main(int argc, char *argv[])
                 range_query_contents contents = request->range_query;
                 struct timespec start, end;
                 clock_gettime(CLOCK_REALTIME, &start);
+                bool query_success = false;
                 switch (query_plan) { // TODO: fill in cases
                     case STARFISH: {
-                        while (starfish(contents))
-                            heartbeat();
+                        // while (starfish(contents))
+                        //     heartbeat();
+                        query_success = starfish(contents) == EXIT_SUCCESS;
                         break;
                     }
                     case UNISTAR: {
@@ -199,45 +214,42 @@ int main(int argc, char *argv[])
                     }
                 }
                 clock_gettime(CLOCK_REALTIME, &end);
-                u_int64_t dt = (end.tv_sec - start.tv_sec) * 1000000
-                    + (end.tv_nsec - start.tv_nsec) / 1000;
-                char res_buf[128];
-                sum_dt += dt;
-                snprintf(res_buf, 128, "%d,%lu,%lu\n", qnum, dt, sum_dt);
-                fwrite(res_buf, sizeof(char), strlen(res_buf), ft_exp_out);
-                /*
-                if (killed) {
-                    post_kill_tot += dt;
-                    post_kill_times[qnum % FT_PREKILL_Q] = dt;
+                if (query_success && EXPERIMENT_TYPE == FAULT_TOLERANCE) {
+                    u_int64_t dt = (end.tv_sec - start.tv_sec) * 1000000
+                        + (end.tv_nsec - start.tv_nsec) / 1000;
+                    sum_dt += dt;
+                    fprintf(ft_exp_out, "%d,%lu,%lu\n", qnum, dt, sum_dt);
+                    if (M_DEBUG)
+                        printf("%ld: Range query %5d took %10lu μs\n",
+                            end.tv_sec, qnum, dt);
                 }
-                else {
-                    pre_kill_tot += dt;
-                    pre_kill_times[qnum] = dt;
-                }
-                */
-                if (M_DEBUG)
-                    printf("%ld: Range query %d took %8lu mus\n",
-                        end.tv_sec, qnum, dt);
+
                 qnum++;
             }
             else if (request->mtype == mtype_point_query) {
                 /* TODO: Call Jahrme function here */
             }
+            else if (request->mtype == mtype_slave_intro) {
+                // TODO Jahrme?
+            }
+            else if (request->mtype == mtype_kill_master) {
+                puts("Master told to exit...");
+                master_cleanup();
+                exit(0);
+            }
             free(request);
         }
     }
-    fclose(ft_exp_out);
-    /*
-    double prekill_avg = ((double) pre_kill_tot) / FT_PREKILL_Q;
-    double prekill_stdev = stdev(pre_kill_times, prekill_avg, FT_PREKILL_Q);
-    printf("Avg time pre kill: %fms, stdev = %fms\n", prekill_avg,
-            prekill_stdev);
-    printf("Recovery time = %lums\n", reac_time);
-    double postkill_avg = ((double) post_kill_tot) / FT_POSTKILL_Q;
-    double postkill_stdev = stdev(post_kill_times, postkill_avg, FT_POSTKILL_Q);
-    printf("Avg time postkill: %fms, stdev = %fms\n",
-        postkill_avg, postkill_stdev);
-    */
+    switch (EXPERIMENT_TYPE) {
+        case FAULT_TOLERANCE:
+            fclose(ft_exp_out);
+            fclose(ft_real_out);
+            break;
+        default:
+            break;
+    }
+    master_cleanup();
+    return 0;
 }
 
 double stdev(u_int64_t *items, double avg, int N) {
@@ -311,13 +323,15 @@ int starfish(range_query_contents contents)
         contents.ops, array_index);
 }
 
-void master_cleanup()
+void master_cleanup(void)
 {
     switch (partition) {
         case RING_CH: {
             free_rbt(chash_table);
             break;
         }
+        default:
+            break;
     }
 }
 
@@ -343,7 +357,11 @@ int heartbeat()
                         u_int64_t reac_time;
                         reac_time = (end.tv_sec - start.tv_sec) * 1000000
                             + (end.tv_nsec - start.tv_nsec) / 1000;
-                        printf("Recovery time: %lu mus\n", reac_time);
+                        if (EXPERIMENT_TYPE == FAULT_TOLERANCE) {
+                            fprintf(ft_real_out, "%lu\n", reac_time);
+                        }
+                        printf("Recovery time: %lu μs\n", reac_time);
+
                     }
                     delete_entry(chash_table, slavelist[i]->id);
                     if (M_DEBUG) puts("deleted from slave tree");
@@ -358,7 +376,7 @@ int heartbeat()
     }
     if (get_num_slaves() == 0) {
         puts("Master: no slaves remain, exiting");
-        master_cleanup(); // TODO
+        master_cleanup();
         exit(0);
     }
     return 0;

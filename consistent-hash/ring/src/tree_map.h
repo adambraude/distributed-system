@@ -46,5 +46,6 @@ slave **ring_get_machines_for_vector(rbt *, u_int, int);
 slave **ring_flattened_slavelist(rbt *);
 void delete_entry(rbt *, cache_id);
 void insert_slave(rbt *, slave *);
+void free_rbt(rbt *);
 
 #endif

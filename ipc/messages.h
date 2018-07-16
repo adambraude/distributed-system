@@ -16,9 +16,16 @@ static key_t MSQ_KEY = 440440;
 static int MSQ_PERMISSIONS = 0666;
 
 /* Message types */
-static long mtype_put = 1;
-static long mtype_point_query = 2;
-static long mtype_range_query = 3;
+enum {
+    mtype_put,
+    mtype_point_query,
+    mtype_range_query,
+    mtype_kill_master,
+    mtype_slave_intro
+};
+// static long mtype_put = 1;
+// static long mtype_point_query = 2;
+// static long mtype_range_query = 3;
 // static long mtype_kill_master = 98;
 // static long mtype_master_dying = 99;
 
@@ -34,7 +41,7 @@ typedef struct range_query_contents {
 } range_query_contents;
 
 typedef struct msgbuf {
-    long mtype;
+    int mtype;
     assigned_vector vector;
     vec_id_t point_vec_id;       /* for point query */
     range_query_contents range_query; /* for range query */

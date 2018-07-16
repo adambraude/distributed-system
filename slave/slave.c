@@ -10,7 +10,6 @@
 #include "../../bitmap-engine/BitmapEngine/src/wah/WAHQuery.h"
 
 #include "../bitmap-vector/read_vec.h"
-#include "../types/types.h"
 #include "../util/ds_util.h"
 
 #include <math.h>
@@ -23,13 +22,6 @@
 
 char **slave_addresses = NULL;
 u_int slave_id;
-
-
-#define SLAVE_DEBUG true
-#define ERRMESS_DEBUG true
-#define SLAVE_ERR true
-#define TIMEOUT_DEBUG false
-#define TIMEOUT 5
 
 query_result *get_vector(u_int vec_id)
 {

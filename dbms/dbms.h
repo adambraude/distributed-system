@@ -17,4 +17,6 @@ enum {BASIC_TEST, POLITICAL_DATA_TEST, WORLD_TEST, TPCORG_C_TEST};
 
 enum {RING_CH, JUMP_CH, STATIC_PART};
 
+int master_exit(int);
+
 #endif /* DBMS_H */

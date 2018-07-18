@@ -19,6 +19,7 @@
 #include "../util/ds_util.h"
 #include "../experiments/fault_tolerance.h"
 #include "../experiments/exper.h"
+#include "../util/ipc_util.h"
 
 
 /* variables for use in all master functions */
@@ -86,27 +87,6 @@ int main(int argc, char *argv[])
         }
     }
 
-    // bool INIT_TEST = true;
-    // print_tree(chash_table, chash_table->root);
-    //
-    // puts("printing slave list");
-    // u_int succ_id = ring_get_succ_slave(chash_table, 0)->id;
-    // printf("[succ] base = 0\n");
-    // while (succ_id != 0) {
-    //     printf("succ = %u\n", succ_id);
-    //     succ_id = ring_get_succ_slave(chash_table, succ_id)->id;
-    // }
-    // u_int pred_id = ring_get_pred_slave(chash_table, 0)->id;
-    // printf("[pred] base = 0\n");
-    // int ctr = 0;
-    // while (pred_id != 0) {
-    //     printf("pred = %u\n", pred_id);
-    //     u_int old = pred_id;
-    //     pred_id = ring_get_pred_slave(chash_table, pred_id)->id;
-    //     if (ctr++ > chash_table->size) return 1;
-    // }
-    // return 1;
-
     if (get_num_slaves() == 1) replication_factor = 1;
 
 
@@ -124,16 +104,12 @@ int main(int argc, char *argv[])
 
 
 
-    if (EXPERIMENT_TYPE == FAULT_TOLERANCE) {
+    if (EXPERIMENT_TYPE == F_TOL) {
         /* fault tolerance experiment output files */
-        time_t rawtime;
-        struct tm *timeinfo;
-        time(&rawtime);
-        timeinfo = localtime(&rawtime);
-        char *timestamp = asctime(timeinfo) + 11; /* skip month and day */
-        timestamp[strlen(timestamp) - 6] = '\0'; /* trim year */
-        char outfile_nmbuf[36];
-        snprintf(outfile_nmbuf, 36, "%s%s.csv", FT_OUT_PREFIX, timestamp);
+        char timestamp[32];
+        getcurr_timestamp(timestamp, sizeof(timestamp));
+        char outfile_nmbuf[32];
+        snprintf(outfile_nmbuf, 32, "%s%s.csv", FT_OUT_PREFIX, timestamp);
         ft_exp_out = fopen(outfile_nmbuf, "w");
         fprintf(ft_exp_out, "qnum,time,sum\n");
         char real_buf[32];
@@ -149,7 +125,7 @@ int main(int argc, char *argv[])
             /* For experiment: if a certain query 0 by the modulus is reached,
              * kill a slave */
 
-            if (EXPERIMENT_TYPE == FAULT_TOLERANCE &&
+            if (EXPERIMENT_TYPE == F_TOL &&
                 qnum > 0 && qnum % FT_KILL_MODULUS == 0) {
                 switch (FT_EXP_TYPE) {
                     case ORDERED_BY_ID:
@@ -163,8 +139,6 @@ int main(int argc, char *argv[])
                 }
 
             }
-
-            heartbeat(); /* ensure slaves can be called */
 
             request = (struct msgbuf *) malloc(sizeof(msgbuf));
             /* Grab from queue. */
@@ -189,6 +163,7 @@ int main(int argc, char *argv[])
                 free(commit_slaves);
             }
             else if (request->mtype == mtype_range_query) {
+                heartbeat(); /* ensure slaves can be called */
                 range_query_contents contents = request->range_query;
                 struct timespec start, end;
                 clock_gettime(CLOCK_REALTIME, &start);
@@ -214,7 +189,7 @@ int main(int argc, char *argv[])
                     }
                 }
                 clock_gettime(CLOCK_REALTIME, &end);
-                if (query_success && EXPERIMENT_TYPE == FAULT_TOLERANCE) {
+                if (query_success && EXPERIMENT_TYPE == F_TOL) {
                     u_int64_t dt = (end.tv_sec - start.tv_sec) * 1000000
                         + (end.tv_nsec - start.tv_nsec) / 1000;
                     sum_dt += dt;
@@ -241,7 +216,7 @@ int main(int argc, char *argv[])
         }
     }
     switch (EXPERIMENT_TYPE) {
-        case FAULT_TOLERANCE:
+        case F_TOL:
             fclose(ft_exp_out);
             fclose(ft_real_out);
             break;
@@ -357,7 +332,7 @@ int heartbeat()
                         u_int64_t reac_time;
                         reac_time = (end.tv_sec - start.tv_sec) * 1000000
                             + (end.tv_nsec - start.tv_nsec) / 1000;
-                        if (EXPERIMENT_TYPE == FAULT_TOLERANCE) {
+                        if (EXPERIMENT_TYPE == F_TOL) {
                             fprintf(ft_real_out, "%lu\n", reac_time);
                         }
                         printf("Recovery time: %lu μs\n", reac_time);

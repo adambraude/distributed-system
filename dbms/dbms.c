@@ -5,6 +5,8 @@
 #include "../experiments/exper.h"
 #include "../experiments/fault_tolerance.h"
 #include "../experiments/load_vec.h"
+#include "../util/ipc_util.h"
+
 
 #include <errno.h>
 #include <stdbool.h>
@@ -50,6 +52,7 @@ void test_put_vec_len_2(int queue_id, int vec_id, u_int64_t vec, u_int64_t vec2)
     v->vector_length = 2;
     put_vector(queue_id, vec_id, v);
 }
+
 /**
  * Database Management System (DBMS)
  *
@@ -66,7 +69,7 @@ int main(int argc, char *argv[])
 
     bool master_exists = false;
     pid_t master_pid = -1;
-    if (!master_exists && EXPERIMENT_TYPE != LOAD_VECTORS) {
+    if (!master_exists && EXPERIMENT_TYPE != L_VECTORS) {
         const char *master_args[3];
         switch (master_pid = fork()) {
             case -1:
@@ -138,14 +141,9 @@ int main(int argc, char *argv[])
     else if (test_no == TPCORG_C_TEST) {
 
         switch (EXPERIMENT_TYPE) {
-            case LOAD_VECTORS: {
-                // TODO: current time string function
-                time_t rawtime;
-                struct tm *timeinfo;
-                time(&rawtime);
-                timeinfo = localtime(&rawtime);
-                char *timestamp = asctime(timeinfo) + 11; /* skip month and day */
-                timestamp[strlen(timestamp) - 6] = '\0'; /* trim year */
+            case L_VECTORS: {
+                char timestamp[32];
+                getcurr_timestamp(timestamp, sizeof(timestamp));
                 char outfile_nmbuf[36];
                 snprintf(outfile_nmbuf, 36, "%s-%s.csv", LV_OUTFILE, timestamp);
                 FILE *fp = fopen(outfile_nmbuf, "w");
@@ -160,7 +158,7 @@ int main(int argc, char *argv[])
                         struct timespec start, end;
                         clock_gettime(CLOCK_REALTIME, &start);
                         for (j = 0; j < num_vecs; j++) {
-                            snprintf(buf, 64, "../tst_data/tpc/10k-vec/v_%d.dat", j);
+                            snprintf(buf, 64, "../tst_data/tpc/vec1k/v_%d.dat", j);
                             put_vector(msq_id, j, read_vector(buf));
                         }
                         clock_gettime(CLOCK_REALTIME, &end);
@@ -182,11 +180,11 @@ int main(int argc, char *argv[])
                 fclose(fp);
                 break;
             }
-            case FAULT_TOLERANCE: {
+            case F_TOL: {
                 int num_vecs = FT_NUM_VEC, i;
                 char buf[64];
                 for (i = 0; i < num_vecs; i++) {
-                    snprintf(buf, 64, "../tst_data/tpc/vec/v_%d.dat", i);
+                    snprintf(buf, 64, "../tst_data/tpc/vec1k/v_%d.dat", i);
                     put_vector(msq_id, i, read_vector(buf));
                 }
                 /* read queries */
@@ -215,8 +213,13 @@ int main(int argc, char *argv[])
     /* CLEANING UP */
     int master_result = 0;
     /* Reap master. */
-    if (EXPERIMENT_TYPE != LOAD_VECTORS)
+
+    // TODO: fix this
+    if (EXPERIMENT_TYPE == L_VECTORS)
         waitpid(master_pid, &status, WNOHANG);
+    else
+        wait(&master_result);
+
     puts("DBMS: Master process killed, closing");
 
     /* Destroy message queue. */

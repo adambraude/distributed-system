@@ -29,7 +29,7 @@ program REMOTE_QUERY_PIPE {
     version REMOTE_QUERY_PIPE_V1 {
         query_result RQ_PIPE(rq_pipe_args) = 1;
     } = 1;
-} = 0x20;
+} = 0x10;
 
 /**
  *  Root Query

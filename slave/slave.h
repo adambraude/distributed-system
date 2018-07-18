@@ -1,7 +1,7 @@
 #ifndef SLAVE_H
 
-#define SLAVE_DEBUG true
-#define ERRMESS_DEBUG true
+#define SLAVE_DEBUG false
+#define ERRMESS_DEBUG false
 #define SLAVE_ERR true
 #define TIMEOUT_DEBUG false
 #define TIMEOUT 5

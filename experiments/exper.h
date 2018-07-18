@@ -1,6 +1,10 @@
 #ifndef EXPER_H
 
-enum {LOAD_VECTORS, FAULT_TOLERANCE, SLAVE_INTRO};
-#define EXPERIMENT_TYPE LOAD_VECTORS
+enum {
+    L_VECTORS,
+    F_TOL,
+    SLAVE_INTRO
+};
+#define EXPERIMENT_TYPE F_TOL
 
 #endif

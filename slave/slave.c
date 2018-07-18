@@ -56,9 +56,12 @@ bool query_res_valid(rq_pipe_args *query_ptr, u_int64_t **result_val,
     query_result *this_result, query_result *next_result,
     int *result_len_ptr)
 {
-    // if (query_ptr == NULL || result_val == NULL || this_result) { // ...
-    //
-    // }
+    if (query_ptr == NULL || result_val == NULL || this_result == NULL
+        || next_result == NULL || this_result->vector.vector_val == NULL ||
+        next_result->vector.vector_val == NULL) {
+            puts("Error: invalid args");
+            return false;
+    }
     if (SLAVE_DEBUG) puts("Checking validity");
     int v_len = max(this_result->vector.vector_len,
         next_result->vector.vector_len);
@@ -136,6 +139,12 @@ query_result *success_res(query_result *res)
     return res;
 }
 
+// void free_qres(query_result *res)
+// {
+//     free(res->vector);
+//     free(res);
+// }
+
 query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
 {
     // if (TIMEOUT_DEBUG) {
@@ -172,8 +181,8 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
             }
 
             set_vec(result_len, result_val, this_result);
+            free(next_result);
             if (query.next == NULL) {
-                free(next_result);
                 if (SLAVE_DEBUG) puts("completed all-local rq");
                 return success_res(this_result);
             }
@@ -193,14 +202,14 @@ query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
         }
         else {
             /* give the request a time-to-live */
-            struct timeval tv;
-            tv.tv_sec = TIME_TO_VOTE * 5;
-            tv.tv_usec = 0;
-            //clnt_control(client, CLSET_TIMEOUT, &tv);
+            // struct timeval tv;
+            // tv.tv_sec = TIME_TO_VOTE * 5;
+            // tv.tv_usec = 0;
+            // clnt_control(client, CLSET_TIMEOUT, &tv);
             if (SLAVE_DEBUG)
                printf("RPCing %d, vec %u\n", query.machine_no, query.vec_id);
             next_result = rq_pipe_1(query, client);
-            // clnt_destroy(client);
+            clnt_destroy(client);
             if (next_result == NULL) {
                 if (SLAVE_ERR) puts("Failed to obtain next result.");
                 //clnt_perror(client, "Recursive pipe call failed");
@@ -326,6 +335,7 @@ int *send_vec_1_svc(copy_vector_args copy_args, struct svc_req *req)
         printf("Sending vector %u to slave %u\n", copy_args.vec_id, copy_args.destination_no);
     int *res = commit_vec_1(args, cl);
     free(qres);
+    clnt_destroy(cl);
     return res;
 }
 

@@ -233,6 +233,7 @@ int master_exit(int qid)
     msgbuf *buf = (msgbuf *) malloc(sizeof(msgbuf));
     buf->mtype = mtype_kill_master;
     msgsnd(qid, buf, sizeof(msgbuf), 0);
+    free(buf);
     return 0;
 }
 
@@ -246,7 +247,8 @@ int put_vector(int queue_id, vec_id_t vec_id, vec_t *vec)
     put->vector = *av;
 
     msgsnd(queue_id, put, sizeof(msgbuf), 0);
-
+    free(av);
+    free(put);
     return EXIT_SUCCESS;
 }
 

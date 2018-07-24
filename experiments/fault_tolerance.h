@@ -16,6 +16,6 @@ enum {
     ORDERED_BY_ID,
     RANDOM_SLAVE
 };
-#define FT_EXP_TYPE ORDERED_BY_ID
+#define FT_EXP_TYPE NO_KILL
 
 #endif

@@ -189,8 +189,8 @@ int main(int argc, char *argv[])
                 }
                 /* read queries */
                 FILE *fp;
-                //fp = fopen("../tst_data/tpc/qs/query_lt128.shuffled.dat", "r");
-                fp = fopen("../tst_data/tpc/qs/query_lt128.dat", "r");
+                fp = fopen("../tst_data/tpc/qs/30k-rand-query_lt128.dat", "r");
+                //fp = fopen("../tst_data/tpc/qs/query_lt128.dat", "r");
                 if (fp == NULL) {
                     puts("Error: could not open test file");
                     return 1;

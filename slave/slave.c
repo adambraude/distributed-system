@@ -139,17 +139,8 @@ query_result *success_res(query_result *res)
     return res;
 }
 
-// void free_qres(query_result *res)
-// {
-//     free(res->vector);
-//     free(res);
-// }
-
 query_result *rq_pipe_1_svc(rq_pipe_args query, struct svc_req *req)
 {
-    // if (TIMEOUT_DEBUG) {
-    //     sleep(TIMEOUT + 1); // trigger timout
-    // }
     query_result *this_result = get_vector(query.vec_id), *next_result = NULL;
     /* Something went wrong with reading the vector,
      * or we're in the final call */

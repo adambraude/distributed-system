@@ -36,12 +36,13 @@ typedef struct range_query_contents {
     unsigned int num_ranges;
 } range_query_contents;
 
-typedef struct msgbuf {
+typedef struct message_buffer {
     int mtype;
+    char address[16];
     assigned_vector vector;
     vec_id_t point_vec_id;       /* for point query */
     range_query_contents range_query; /* for range query */
-} msgbuf;
+} message_buffer;
 
 
 #endif /* MESSAGES_H */

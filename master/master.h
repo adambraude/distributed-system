@@ -5,7 +5,7 @@
 #include "../types/types.h"
 #include "../ipc/messages.h"
 #define SLAVELIST_PATH "../SLAVELIST"
-#define M_DEBUG true /* show debugging messages */
+#define M_DEBUG false /* show debugging messages */
 
 extern char **slave_addresses;
 
@@ -13,18 +13,6 @@ extern char **slave_addresses;
  * each slave will keep a linked list of vector IDs indicating which
  * vector it has (could also keep record of the vector itself)
  */
-// typedef struct slave_vector {
-//     unsigned int id;
-//     struct slave_vector *next;
-// } slave_vector;
-
-// typedef struct slave {
-//     unsigned int id;
-//     char *address;
-//     bool is_alive;
-//     slave_vector *primary_vector_head; /* vectors that were assigned to this slave */
-//     slave_vector *primary_vector_tail;
-// } slave;
 
 typedef struct slave_ll {
     slave *slave_node;
@@ -37,19 +25,20 @@ typedef enum {UNISTAR, STARFISH, MULTISTAR, ITER_PRIM} query_plan_t; /* query pl
 static int replication_factor = 2;
 
 /* master function prototypes */
-bool setup_slave(slave*);
-slave *new_slave(char*);
-int heartbeat(void);
+bool add_slave(char *);
 bool is_alive(char *);
-slave **get_machines_for_vector(unsigned int, bool);
-int send_vector(slave *, vec_id_t, slave*);
-void reallocate(slave *);
-int starfish(range_query_contents);
-int get_new_slave_id(void);
-slave *new_slave(char *address);
+bool setup_slave(slave *);
+double stdev(u_int64_t *, double, int);
 int compare_machine_vec_tuple(const void *, const void *);
+int get_new_slave_id(void);
+int heartbeat(void);
+int ring_heartbeat(void);
 int remove_slave(unsigned int);
-double stdev(u_int64_t *items, double avg, int N);
+int send_vector(slave *, vec_id_t, slave *);
+int starfish(range_query_contents);
+slave **get_machines_for_vector(unsigned int, bool);
+slave *create_new_slave(char *);
 void master_cleanup(void);
+void reallocate(slave *);
 
 #endif /* MASTER_H */

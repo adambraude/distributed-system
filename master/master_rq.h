@@ -4,6 +4,7 @@
 #include "../ipc/messages.h"
 #include "../types/types.h"
 
+vec_t *init_point_query(vec_id_t vec_id);
 int init_btree_range_query(range_query_contents);
 int hande_query(char[]);
 int handle_point_query(char[]);

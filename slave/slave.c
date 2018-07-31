@@ -334,3 +334,9 @@ int *kill_order_1_svc(int arg, struct svc_req *req)
     printf("Slave %d exiting\n", slave_id);
     exit(0);
 }
+
+query_result *point_query_1_svc(unsigned int vec_id, struct svc_req *req)
+{
+    query_result *result = get_vector((vec_id_t) vec_id);
+    return result;
+}

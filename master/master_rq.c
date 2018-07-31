@@ -174,7 +174,8 @@ void *init_coordinator_thread(void *coord_args) {
 
     if (clnt == NULL) {
         clnt_pcreateerror(slave_addresses[args->args->machine_no]);
-        puts("Failed to create client");
+        if (M_DEBUG)
+            puts("Failed to create client");
         return (void *) EXIT_FAILURE;
     }
     query_result *res = rq_pipe_1(*(args->args), clnt);
@@ -198,4 +199,32 @@ void *init_coordinator_thread(void *coord_args) {
     }
     free(coord_args);
     return (void *) EXIT_SUCCESS;
+}
+
+vec_t *init_point_query(vec_id_t vec_id)
+{
+    slave **tuple = get_machines_for_vector(vec_id, false);
+
+    // TODO: Should probably round-robin instead of taking first slave in tuple.
+    char *address = tuple[0]->address;
+
+    CLIENT *clnt = clnt_create(address, REMOTE_POINT_QUERY,
+        REMOTE_POINT_QUERY_V1, "tcp");
+
+    if (clnt == NULL) {
+        if (M_DEBUG)
+            puts("Failed to create client");
+        return (void *) EXIT_FAILURE;
+    }
+
+    query_result *res = point_query_1((unsigned int) vec_id, clnt);
+
+    // Convert query result to vector.
+    vec_t *vector = (vec_t *) malloc(sizeof(vec_t));
+    vector->vector_length = res->vector.vector_len;
+
+    memset(vector->vector, 0, MAX_VECTOR_LEN * sizeof(u_int64_t));
+    memcpy(vector->vector, res->vector.vector_val, sizeof(u_int64_t) * vector->vector_length);
+
+    return vector;
 }

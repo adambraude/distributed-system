@@ -102,3 +102,14 @@ program KILL_SLAVE {
         int KILL_ORDER(int) = 1;
     } = 1;
 } = 0x80;
+
+/**
+ * Point Query
+ *
+ * Queries a single vector.
+ */
+program REMOTE_POINT_QUERY {
+    version REMOTE_POINT_QUERY_V1 {
+        query_result POINT_QUERY(unsigned int) = 1;
+    } = 1;
+} = 0x90;

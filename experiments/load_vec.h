@@ -9,7 +9,7 @@
  * MULTIPLIER, then distribute that number of vectors. Do this NUM_TRIALS
  * times.
  */
-#define LV_NUM_TRIALS  4
+#define LV_NUM_TRIALS  5
 #define LV_START       10
 #define LV_MULTIPLIER  10
 

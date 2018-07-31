@@ -32,8 +32,6 @@ u_int test_no = 5;
 /* Ring CH variables */
 rbt *chash_table;
 
-#define REAL_DEBUG false
-
 /* static partition variables */
 int *partition_scale_1, *partition_scale_2; /* partitions and backups */
 u_int num_keys; /* e.g., value of largest known key, plus 1 */
@@ -58,14 +56,14 @@ FILE *ft_real_out;
  */
 int main(int argc, char *argv[])
 {
-    int i, j;
+    int i;
     partition = RING_CH;
     query_plan = STARFISH;
 
-    int c;
     int slave_cnt = fill_slave_arr(SLAVELIST_PATH, &slave_addresses);
     if (slave_cnt == -1) {
-        puts("Master: could not register slaves, exiting...");
+        if (M_DEBUG)
+            puts("Master: could not register slaves, exiting...");
         return 1;
     }
 
@@ -76,11 +74,10 @@ int main(int argc, char *argv[])
     /* index in slave list will be the machine ID (0 is master) */
     slave *s;
     for (i = 0; i < slave_cnt; i++) {
-        s = new_slave(slave_addresses[i]);
+        s = create_new_slave(slave_addresses[i]);
         if (setup_slave(s)) {
-            if (partition == RING_CH) { /* connected to slave? */
-                insert_slave(chash_table, s);
-            }
+            /* connected to slave? */
+            if (partition == RING_CH) insert_slave(chash_table, s);
         }
         else {
             printf("Failed to setup slave %s\n", slave_addresses[i]);
@@ -89,35 +86,35 @@ int main(int argc, char *argv[])
 
     if (get_num_slaves() == 1) replication_factor = 1;
 
-
     /* Message queue setup */
-    int msq_id = msgget(MSQ_KEY, MSQ_PERMISSIONS | IPC_CREAT), rc, qnum = 0;
-    int slave_death_inst = FT_KILL_Q;
-    ///bool killed = false;
-    struct msgbuf *request;
+    int msq_id = msgget(MSQ_KEY, MSQ_PERMISSIONS | IPC_CREAT), rc;
+    struct message_buffer *request;
     struct msqid_ds buf;
-    u_int64_t pre_kill_times[FT_PREKILL_Q], post_kill_times[FT_POSTKILL_Q];
-    u_int64_t pre_kill_tot = 0, post_kill_tot = 0;
+
     int slave_death_index = 0;
     FILE *ft_exp_out;
-    u_int64_t sum_dt = 0;
-
-
+    int64_t sum_dt_s = 0;
+    int64_t sum_dt_ns = 0;
 
     if (EXPERIMENT_TYPE == FAULT_TOLERANCE) {
         /* fault tolerance experiment output files */
         char timestamp[32];
         getcurr_timestamp(timestamp, sizeof(timestamp));
         char outfile_nmbuf[32];
-        snprintf(outfile_nmbuf, 32, "%s-%s.csv", FT_OUT_PREFIX, timestamp);
+        snprintf(outfile_nmbuf, 32, "%s-%s.csv", FT_QRES_PREFIX, timestamp);
         ft_exp_out = fopen(outfile_nmbuf, "w");
         fprintf(ft_exp_out, "qnum,time,sum\n");
+
         char real_buf[32];
-        snprintf(real_buf, 32, "ft-real-%s.csv", timestamp);
+        snprintf(real_buf, 32, "%s-%s.csv", FT_REALLOC_PREFIX, timestamp);
         ft_real_out = fopen(real_buf, "w");
         fprintf(ft_real_out, "time\n");
     }
 
+    if (M_DEBUG)
+        puts("Master: listening to queue...");
+
+    int qnum = 0;
     while (qnum < FT_NUM_QUERIES) {
         msgctl(msq_id, IPC_STAT, &buf);
 
@@ -137,12 +134,12 @@ int main(int argc, char *argv[])
                     default:
                         break;
                 }
-
             }
 
-            request = (struct msgbuf *) malloc(sizeof(msgbuf));
+            request = (struct message_buffer *) malloc(sizeof(message_buffer));
+
             /* Grab from queue. */
-            rc = msgrcv(msq_id, request, sizeof(msgbuf), 0, 0);
+            rc = msgrcv(msq_id, request, sizeof(message_buffer), 0, 0);
 
             /* Error Checking */
             if (rc < 0) {
@@ -165,50 +162,114 @@ int main(int argc, char *argv[])
             else if (request->mtype == mtype_range_query) {
                 heartbeat(); /* ensure slaves can be called */
                 range_query_contents contents = request->range_query;
-                struct timespec start, end;
-                clock_gettime(CLOCK_REALTIME, &start);
                 bool query_success = false;
-                switch (query_plan) { // TODO: fill in cases
+
+                struct timespec start, stop;
+                clock_gettime(CLOCK_REALTIME, &start);
+                switch (query_plan) {
                     case STARFISH: {
-                        // while (starfish(contents))
-                        //     heartbeat();
                         query_success = starfish(contents) == EXIT_SUCCESS;
                         break;
                     }
                     case UNISTAR: {
-
+                        // TODO
                     }
                     case MULTISTAR: {
-
+                        // TODO
                     }
                     case ITER_PRIM: {
-
+                        // TODO
                     }
                     default: {
-
+                        // TODO
                     }
                 }
-                clock_gettime(CLOCK_REALTIME, &end);
-                if (query_success && EXPERIMENT_TYPE == FAULT_TOLERANCE) {
-                    u_int64_t dt = (end.tv_sec - start.tv_sec) * 1000000
-                        + (end.tv_nsec - start.tv_nsec) / 1000;
-                    sum_dt += dt;
-                    fprintf(ft_exp_out, "%d,%lu,%lu\n", qnum, dt, sum_dt);
+                clock_gettime(CLOCK_REALTIME, &stop);
+
+                if (query_success) {
+                    /* Calculate time difference */
+                    int64_t dt_s = stop.tv_sec - start.tv_sec;
+                    int64_t dt_ns = stop.tv_nsec - start.tv_nsec;
+
+                    /* Adjust if negative nanosecond change */
+                    if (dt_ns < 0) {
+                        dt_ns += 1e9;
+                        dt_s += -1;
+                    }
+
+                    /* Add to sum */
+                    sum_dt_s += dt_s;
+                    sum_dt_ns += dt_ns;
+
+                    /* Convert sufficient nanoseconds to a second. */
+                    if (sum_dt_ns > 1e9) {
+                        sum_dt_ns += -1e9;
+                        sum_dt_s += 1;
+                    }
+
+                    // Print query time
                     if (M_DEBUG)
-                        printf("%ld: Range query %5d took %10lu μs\n",
-                            end.tv_sec, qnum, dt);
+                        printf("Range query %d took %ld.%09ld seconds.\n",
+                            qnum, dt_s, dt_ns);
+
+                    // Record query time and cumulative time
+                    if (EXPERIMENT_TYPE == FAULT_TOLERANCE)
+                        fprintf(ft_exp_out, "%d,%ld.%09ld,%ld.%09ld\n",
+                            qnum, dt_s, dt_ns, sum_dt_s, sum_dt_ns);
                 }
 
                 qnum++;
             }
             else if (request->mtype == mtype_point_query) {
-                /* TODO: Call Jahrme function here */
+                struct timespec start, stop;
+                clock_gettime(CLOCK_REALTIME, &start);
+                vec_t *vec = init_point_query(request->point_vec_id);
+                clock_gettime(CLOCK_REALTIME, &stop);
+
+                if (EXPERIMENT_TYPE == FAULT_TOLERANCE) {
+                    /* Calculate time difference */
+                    int64_t dt_s = stop.tv_sec - start.tv_sec;
+                    int64_t dt_ns = stop.tv_nsec - start.tv_nsec;
+
+                    /* Adjust if negative nanosecond change */
+                    if (dt_ns < 0) {
+                        dt_ns += 1e9;
+                        dt_s += -1;
+                    }
+
+                    /* Add to sum */
+                    sum_dt_s += dt_s;
+                    sum_dt_ns += dt_ns;
+
+                    /* Convert sufficient nanoseconds to a second. */
+                    if (sum_dt_ns > 1e9) {
+                        sum_dt_ns += -1e9;
+                        sum_dt_s += 1;
+                    }
+
+                    // Print query time
+                    if (M_DEBUG)
+                        printf("Point query %d took %ld.%09ld seconds.\n",
+                            qnum, dt_s, dt_ns);
+
+                    // Record query time and cumulative time
+                    if (EXPERIMENT_TYPE == FAULT_TOLERANCE)
+                        fprintf(ft_exp_out, "%d,%ld.%09ld,%ld.%09ld\n",
+                            qnum, dt_s, dt_ns, sum_dt_s, sum_dt_ns);
+                }
+
+                qnum++;
+
+
+                free(vec);
             }
             else if (request->mtype == mtype_slave_intro) {
-                // TODO Jahrme?
+                printf("Adding slave with address: %s\n", request->address);
+                add_slave(request->address);
             }
             else if (request->mtype == mtype_kill_master) {
-                puts("Master told to exit...");
+                if (M_DEBUG)
+                    puts("Master told to exit...");
                 master_cleanup();
                 exit(0);
             }
@@ -320,29 +381,7 @@ int heartbeat()
 {
     switch (partition) {
         case RING_CH: {
-            slave **slavelist = ring_flattened_slavelist(chash_table);
-            int i;
-            for (i = 0; i < get_num_slaves(); i++) {
-                if (!is_alive(slavelist[i]->address)) {
-                    if (get_num_slaves() > replication_factor) {
-                        struct timespec start, end;
-                        clock_gettime(CLOCK_REALTIME, &start);
-                        reallocate(slavelist[i]);
-                        clock_gettime(CLOCK_REALTIME, &end);
-                        u_int64_t reac_time;
-                        reac_time = (end.tv_sec - start.tv_sec) * 1000000
-                            + (end.tv_nsec - start.tv_nsec) / 1000;
-                        if (EXPERIMENT_TYPE == FAULT_TOLERANCE) {
-                            fprintf(ft_real_out, "%lu\n", reac_time);
-                        }
-                        printf("Recovery time: %lu μs\n", reac_time);
-
-                    }
-                    delete_entry(chash_table, slavelist[i]->id);
-                    if (M_DEBUG) puts("deleted from slave tree");
-                    return heartbeat(); /* refresh slave list */
-                }
-            }
+            ring_heartbeat();
             break;
         }
         default: {
@@ -350,13 +389,56 @@ int heartbeat()
         }
     }
     if (get_num_slaves() == 0) {
-        puts("Master: no slaves remain, exiting");
+        if (M_DEBUG)
+            puts("Master: no slaves remain, exiting");
         master_cleanup();
         exit(0);
     }
-    return 0;
+    return EXIT_SUCCESS;
 }
 
+int ring_heartbeat()
+{
+    slave **slavelist = ring_flattened_slavelist(chash_table);
+    int i;
+    for (i = 0; i < get_num_slaves(); i++) {
+        if (!is_alive(slavelist[i]->address)) {
+            if (get_num_slaves() > replication_factor) {
+                struct timespec start, stop;
+
+                clock_gettime(CLOCK_REALTIME, &start);
+                reallocate(slavelist[i]);
+                clock_gettime(CLOCK_REALTIME, &stop);
+
+                /* Calculate time difference */
+                int64_t dt_s = stop.tv_sec - start.tv_sec;
+                int64_t dt_ns = stop.tv_nsec - start.tv_nsec;
+
+                /* Adjust if negative nanosecond change */
+                if (dt_ns < 0) {
+                    dt_ns += 1e9;
+                    dt_s += -1;
+                }
+
+                // Print recovery time.
+                if (M_DEBUG)
+                    printf("Recovery time: %ld.%09ld seconds.\n",
+                        dt_s, dt_ns);
+
+                // Record recovery time.
+                if (EXPERIMENT_TYPE == FAULT_TOLERANCE)
+                    fprintf(ft_real_out, "%ld.%09ld\n",
+                        dt_s, dt_ns);
+            }
+            delete_entry(chash_table, slavelist[i]->id);
+            if (M_DEBUG)
+                printf("Master: deleted slave %d (%s) from tree\n",
+                    slavelist[i]->id, slavelist[i]->address);
+            return heartbeat(); /* refresh slave list */
+        }
+    }
+    return EXIT_SUCCESS;
+}
 
 /**
  * Reallocate vectors such that each is replicated at least r times,
@@ -368,7 +450,7 @@ void reallocate(slave *dead_slave)
         case RING_CH: {
             slave *pred = ring_get_pred_slave(chash_table, dead_slave->id);
             slave *succ = ring_get_succ_slave(chash_table, dead_slave->id);
-            slave *sucsuc = ring_get_succ_slave(chash_table, succ->id);
+            slave *succsucc = ring_get_succ_slave(chash_table, succ->id);
 
 
             // if (M_DEBUG) puts("pred -> succ");
@@ -382,13 +464,13 @@ void reallocate(slave *dead_slave)
                 }
             }
 
-            // if (M_DEBUG) puts("suc -> sucsuc");
+            // if (M_DEBUG) puts("succ -> succsucc");
             /* transfer successor's nodes to its successor */
-            if (succ != sucsuc) {
+            if (succ != succsucc) {
                 vec = dead_slave->primary_vector_head;
                 for (; vec != NULL; vec = vec->next) {
-                    //if (vec->id == test_no) printf("s:%u ss:%u v:%u", succ->id, sucsuc->id, test_no);
-                    send_vector(succ, vec->id, sucsuc);
+                    //if (vec->id == test_no) printf("s:%u ss:%u v:%u", succ->id, succsucc->id, test_no);
+                    send_vector(succ, vec->id, succsucc);
                 }
             }
 
@@ -408,6 +490,136 @@ void reallocate(slave *dead_slave)
             break;
         }
     }
+}
+
+/**
+ * Reallocate vectors such that each is replicated at least r times,
+ * after new_slave is added.
+ */
+bool add_slave(char *address)
+{
+    slave *new_slave = create_new_slave(address);
+
+    switch (partition) {
+        case RING_CH: {
+            // Add slave to system
+            if (setup_slave(new_slave)) {
+                insert_slave(chash_table, new_slave);
+            }
+            else {
+                printf("Failed to setup slave %s\n", address);
+                return false;
+            }
+
+            // Get succ and succsucc (they are the two that will "lose" vecs)
+            slave *succ = ring_get_succ_slave(chash_table, new_slave->id);
+            slave *succsucc = ring_get_succ_slave(chash_table, succ->id);
+
+
+            if (new_slave == succ) {
+                if (M_DEBUG)
+                    puts("add_slave: Adding first slave");
+                // Only one slave exists, nothing to do.
+                return true;
+            }
+            else if (new_slave == succsucc) {
+                if (M_DEBUG)
+                    puts("add_slave: Adding second slave");
+                // Two slaves exit, copy all vecs from succ to new.
+                slave_vector *old_vec = succ->primary_vector_head;
+                slave_vector *new_vec = new_slave->primary_vector_head;
+                for (; old_vec != NULL; old_vec = old_vec->next) {
+                    send_vector(succ, old_vec->id, new_slave);
+                    new_vec->next = old_vec;
+                    new_vec = new_vec->next;
+                }
+                return true;
+            }
+            if (M_DEBUG)
+                puts("add_slave: Adding third or greater slave");
+
+            // There are three or more slaves, manage both succ and succsucc.
+
+            // Create temporary head vector for new slave
+            slave_vector *temp_vec = malloc(sizeof(slave_vector));
+            temp_vec->next = NULL;
+
+            // Create pointer to construct new linked list
+            slave_vector *new_vec = temp_vec;
+
+            // Create pointer to traverse existing linked lists
+            slave_vector *vec;
+            slave **slaves;
+            slave *slave;
+            int i;
+            bool need_to_remove;
+
+            // Process succ's vectors
+            vec = succ->primary_vector_head;
+            for (; vec!= NULL; vec = vec->next) {
+                slaves = get_machines_for_vector(vec->id, false);
+                need_to_remove = true;
+                for (i = 0; i < replication_factor; ++i) {
+                    slave = slaves[i];
+                    if (slave == new_slave) {
+                        if (M_DEBUG)
+                            puts("add_slave: sending from succ");
+                        send_vector(succ, vec->id, new_slave);
+                        new_vec->next = malloc(sizeof(slave_vector));
+                        new_vec->next->id = vec->id;
+                        new_vec->next->next = NULL;
+                        new_vec = new_vec->next;
+                    } else if (slave == succ) {
+                        need_to_remove = false;
+                    }
+                }
+                if (need_to_remove) {
+                    // remove vec from succ's list
+                }
+            }
+
+            // Process succsucc's vectors
+            vec = succsucc->primary_vector_head;
+            for (; vec!= NULL; vec = vec->next) {
+                slaves = get_machines_for_vector(vec->id, false);
+                need_to_remove = true;
+                for (i = 0; i < replication_factor; ++i) {
+                    slave = slaves[i];
+                    if (slave == new_slave) {
+                        if (M_DEBUG)
+                            puts("add_slave: sending from succsucc");
+                        send_vector(succsucc, vec->id, new_slave);
+                        new_vec->next = malloc(sizeof(slave_vector));
+                        new_vec->next->id = vec->id;
+                        new_vec->next->next = NULL;
+                        new_vec = new_vec->next;
+                    } else if (slave == succ) {
+                        need_to_remove = false;
+                    }
+                }
+                if (need_to_remove) {
+                    // remove vec from succsucc's list
+                }
+            }
+
+            // Get rid of temp vec.
+            // Result will be either null head (no vecs) or LL of vecs.
+            new_slave->primary_vector_head = temp_vec->next;
+            free(temp_vec);
+
+            break;
+        }
+
+        case JUMP_CH: {
+            break;
+        }
+
+        case STATIC_PARTITION: {
+            break;
+        }
+    }
+
+    return true;
 }
 
 /**
@@ -491,7 +703,7 @@ int get_new_slave_id(void)
     return slave_id_counter++;
 }
 
-slave *new_slave(char *address)
+slave *create_new_slave(char *address)
 {
     slave *s = (slave *) malloc(sizeof(slave));
     s->id = get_new_slave_id();

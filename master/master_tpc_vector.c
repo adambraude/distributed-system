@@ -18,8 +18,8 @@ typedef struct push_vec_args {
 } push_vec_args;
 
 /*
- * Returns true if the result is valid: the (int) pointer is nonnull and
- * points to 0
+ * Returns true if the result is valid:
+ * the (int) pointer is non-null and points to 0
  */
 bool res_valid(int *r)
 {
@@ -29,7 +29,7 @@ bool res_valid(int *r)
 /*
  * Commit the given vid:vector mapping to the given array of slaves.
  */
-int commit_vector(vec_id_t vec_id, vec_t vector, slave *slaves[], int num_slaves)
+int commit_vector(vec_id_t vec_id, vec_t vec, slave *slaves[], int num_slaves)
 {
     /* 2PC Phase 1 on all Slaves */
     pthread_t tids[num_slaves];
@@ -54,11 +54,12 @@ int commit_vector(vec_id_t vec_id, vec_t vector, slave *slaves[], int num_slaves
     if (successes != num_slaves) {
         return 1;
     }
+
     /* 2PC Phase 2 */
     i = 0;
     for (i = 0; i < num_slaves; i++) {
         push_vec_args* ptr = (push_vec_args*) malloc(sizeof(push_vec_args));
-        ptr->vector = vector;
+        ptr->vector = vec;
         ptr->slave_addr = slaves[i]->address;
         ptr->vec_id = vec_id;
         pthread_create(&tids[i], NULL, push_vector, (void*) ptr);
@@ -114,6 +115,7 @@ void *push_vector(void *thread_arg)
     int *result = commit_vec_1(*a, cl);
 
     clnt_destroy(cl);
+    free(a);
 
     if (result == NULL) {
         return (void*) 1;
@@ -127,17 +129,16 @@ void *push_vector(void *thread_arg)
  */
 bool setup_slave(slave *slv)
 {
-    CLIENT *cl = clnt_create(slv->address, SETUP_SLAVE, SETUP_SLAVE_V1,
-        "tcp");
+    CLIENT *cl = clnt_create(slv->address, SETUP_SLAVE, SETUP_SLAVE_V1, "tcp");
     if (cl == NULL) {
         return false;
     }
-    init_slave_args *args = (init_slave_args *)
-        malloc(sizeof(init_slave_args));
+    init_slave_args *args = (init_slave_args *) malloc(sizeof(init_slave_args));
     args->machine_name = slv->address;
     args->slave_id = slv->id;
     struct timeval tv;
-    tv.tv_sec = 1; // TODO: it is important to come up with a reasonable value for this!
+    // TODO: it is important to come up with a reasonable value for tv_sec!
+    tv.tv_sec = 1;
     tv.tv_usec = 0;
     clnt_control(cl, CLSET_TIMEOUT, &tv);
     int *res = init_slave_1(*args, cl);
@@ -155,10 +156,6 @@ bool is_alive(char *address)
     if (cl == NULL) {
         return false;
     }
-    // struct timeval tv;
-    // tv.tv_sec = 1;
-    // tv.tv_usec = 0;
-    // clnt_control(cl, CLSET_TIMEOUT, &tv);
     int *res = stayin_alive_1(0, cl);
     clnt_destroy(cl);
     return res_valid(res);
@@ -166,11 +163,6 @@ bool is_alive(char *address)
 
 int send_vector(slave *slave_1, vec_id_t vec_id, slave *slave_2)
 {
-    // u_int test_no = 5;
-    //
-    // if (M_DEBUG && vec_id == test_no) {
-    //     printf("Sending v%u from %u->%u\n", test_no, slave_1->id, slave_2->id);
-    // }
     CLIENT *cl = clnt_create(slave_1->address, COPY_OVER_VECTOR,
         COPY_OVER_VECTOR_V1, "tcp");
     if (cl == NULL) {
@@ -187,8 +179,12 @@ int send_vector(slave *slave_1, vec_id_t vec_id, slave *slave_2)
     int *res = send_vec_1(args, cl);
     clnt_destroy(cl);
     if (res == NULL || *res) {
-        printf("Failed to send vector %u from %d to %d\n", vec_id,
-            slave_1->id, slave_2->id);
+        printf("Failed to send vector %u from %s to %s\n", vec_id,
+            slave_1->address, slave_2->address);
+        if (res == NULL)
+            printf("Result was pointer to NULL...\n");
+        if (*res)
+            printf("Res: %d\n", *res);
         exit(0);
         return 1;
     }

@@ -5,6 +5,8 @@
 #include "../experiments/exper.h"
 #include "../experiments/fault_tolerance.h"
 #include "../experiments/load_vec.h"
+#include "../util/ipc_util.h"
+
 
 #include <errno.h>
 #include <stdbool.h>
@@ -50,6 +52,7 @@ void test_put_vec_len_2(int queue_id, int vec_id, u_int64_t vec, u_int64_t vec2)
     v->vector_length = 2;
     put_vector(queue_id, vec_id, v);
 }
+
 /**
  * Database Management System (DBMS)
  *
@@ -139,13 +142,8 @@ int main(int argc, char *argv[])
 
         switch (EXPERIMENT_TYPE) {
             case LOAD_VECTORS: {
-                // TODO: current time string function
-                time_t rawtime;
-                struct tm *timeinfo;
-                time(&rawtime);
-                timeinfo = localtime(&rawtime);
-                char *timestamp = asctime(timeinfo) + 11; /* skip month and day */
-                timestamp[strlen(timestamp) - 6] = '\0'; /* trim year */
+                char timestamp[32];
+                getcurr_timestamp(timestamp, sizeof(timestamp));
                 char outfile_nmbuf[36];
                 snprintf(outfile_nmbuf, 36, "%s-%s.csv", LV_OUTFILE, timestamp);
                 FILE *fp = fopen(outfile_nmbuf, "w");
@@ -191,7 +189,6 @@ int main(int argc, char *argv[])
                 }
                 /* read queries */
                 FILE *fp;
-                //fp = fopen("../tst_data/tpc/qs/query_lt128.shuffled.dat", "r");
                 fp = fopen("../tst_data/tpc/qs/query_lt128.dat", "r");
                 if (fp == NULL) {
                     puts("Error: could not open test file");
@@ -201,7 +198,6 @@ int main(int argc, char *argv[])
                 size_t n = 0;
                 int qnum = 0;
                 while (getline(&line, &n, fp) != -1 && qnum++ < FT_NUM_QUERIES) {
-                    //if (DBMS_DEBUG) printf("DBMS: %s\n", line);
                     range_query(msq_id, line);
                 }
                 break;
@@ -215,8 +211,13 @@ int main(int argc, char *argv[])
     /* CLEANING UP */
     int master_result = 0;
     /* Reap master. */
-    if (EXPERIMENT_TYPE != LOAD_VECTORS)
+
+    // TODO: fix this
+    if (EXPERIMENT_TYPE == LOAD_VECTORS)
         waitpid(master_pid, &status, WNOHANG);
+    else
+        wait(&master_result);
+
     puts("DBMS: Master process killed, closing");
 
     /* Destroy message queue. */
@@ -230,6 +231,7 @@ int master_exit(int qid)
     msgbuf *buf = (msgbuf *) malloc(sizeof(msgbuf));
     buf->mtype = mtype_kill_master;
     msgsnd(qid, buf, sizeof(msgbuf), 0);
+    free(buf);
     return 0;
 }
 
@@ -243,7 +245,8 @@ int put_vector(int queue_id, vec_id_t vec_id, vec_t *vec)
     put->vector = *av;
 
     msgsnd(queue_id, put, sizeof(msgbuf), 0);
-
+    free(av);
+    free(put);
     return EXIT_SUCCESS;
 }
 

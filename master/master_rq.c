@@ -177,11 +177,6 @@ void *init_coordinator_thread(void *coord_args) {
         puts("Failed to create client");
         return (void *) EXIT_FAILURE;
     }
-    /* give the request a time-to-live */
-    struct timeval tv;
-    tv.tv_sec = TIME_TO_VOTE * 5;
-    tv.tv_usec = 0;
-    //clnt_control(clnt, CLSET_TIMEOUT, &tv);
     query_result *res = rq_pipe_1(*(args->args), clnt);
     if (res == NULL) {
         clnt_perror(clnt, "call failed: ");

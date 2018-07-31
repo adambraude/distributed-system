@@ -20,7 +20,11 @@ $(BIN)/tree_map.o:
 	@echo "Compiling RPC modules"
 	@cd rpc && make
 
-.master: .slave .rpc .bitmap-vector $(BIN)/tree_map.o .ds-util
+.util:
+	@echo "Compiling utils"
+	@$(CC) -c -o $(BIN)/util.o util/ipc_util.c
+
+.master: .slave .rpc .bitmap-vector $(BIN)/tree_map.o .ds-util .util
 	@echo "Compiling Master"
 	@$(CC) -c -o $(BIN)/master_rq.o \
 		master/master_rq.c
@@ -38,6 +42,7 @@ $(BIN)/tree_map.o:
 		$(BIN)/SegUtil.o \
 		$(BIN)/read_vec.o \
 		$(BIN)/slavelist.o \
+		$(BIN)/util.o \
 		master/master.c \
 		-lssl -lpthread -lcrypto -lm #-lpython2.7 # TODO: make `MASTER_FLAGS` target
 
@@ -75,10 +80,11 @@ master_cent: .master_cent
 		slave/slave.c \
 		-lm
 
-.dbms: .bitmap-vector
+.dbms: .bitmap-vector .util
 	@echo "Compiling DBMS"
 	@$(CC) -o $(BIN)/dbms \
 		$(BIN)/read_vec.o \
+		$(BIN)/util.o \
 		dbms/dbms.c -lm
 
 .bitmap-vector:

@@ -21,13 +21,9 @@ enum {
     mtype_point_query,
     mtype_range_query,
     mtype_kill_master,
+    mtype_master_dying,
     mtype_slave_intro
 };
-// static long mtype_put = 1;
-// static long mtype_point_query = 2;
-// static long mtype_range_query = 3;
-// static long mtype_kill_master = 98;
-// static long mtype_master_dying = 99;
 
 typedef struct assigned_vector {
     vec_id_t vec_id;

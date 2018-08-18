@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include "../types/types.h"
 #include "../ipc/messages.h"
-#define SLAVELIST_PATH "../SLAVELIST"
+#define SLAVELIST_PATH "SLAVELIST"
 #define M_DEBUG false /* show debugging messages */
 
 extern char **slave_addresses;

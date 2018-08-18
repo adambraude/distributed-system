@@ -7,7 +7,7 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 
 # Define SLAVELIST relative to script location
-SLAVELIST="$DIR/../distributed-system/SLAVELIST"
+SLAVELIST="SLAVELIST"
 
 # Delete slavelist if it exists
 [ -e $SLAVELIST ] && rm $SLAVELIST

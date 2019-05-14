@@ -303,9 +303,9 @@ int *send_vec_1_svc(copy_vector_args copy_args, struct svc_req *req)
     CLIENT *cl = clnt_create(slave_addresses[copy_args.destination_no],
         TWO_PHASE_COMMIT, TWO_PHASE_COMMIT_V1, "tcp");
     if (cl == NULL) {
-        result = -1;
         printf("Error: could not connect to %s\n",
             slave_addresses[copy_args.destination_no]);
+        result = -1;
         return &result;
     }
     commit_vec_args args;

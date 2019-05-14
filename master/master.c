@@ -47,7 +47,9 @@ int get_num_slaves()
     }
 }
 
-FILE *ft_real_out;
+FILE *ft_real_out; // reallocation file
+FILE *ft_plan_out; // planning file
+FILE *ft_exp_out; // experiment file
 
 /**
  * Master Process
@@ -92,7 +94,6 @@ int main(int argc, char *argv[])
     struct msqid_ds buf;
 
     int slave_death_index = 0;
-    FILE *ft_exp_out;
     int64_t sum_dt_s = 0;
     int64_t sum_dt_ns = 0;
 
@@ -100,19 +101,22 @@ int main(int argc, char *argv[])
         /* fault tolerance experiment output files */
         char timestamp[32];
         getcurr_timestamp(timestamp, sizeof(timestamp));
+
+        char real_buf[32];
+        snprintf(real_buf, 32, "%s-%s.csv", FT_REAL_PREFIX, timestamp);
+        ft_real_out = fopen(real_buf, "w");
+        fprintf(ft_real_out, "time\n");
+
+        char plan_buf[32];
+        snprintf(plan_buf, 32, "%s-%s.csv", FT_PLAN_PREFIX, timestamp);
+        ft_plan_out = fopen(plan_buf, "w");
+        fprintf(ft_plan_out, "planning-time\n");
+
         char outfile_nmbuf[32];
         snprintf(outfile_nmbuf, 32, "%s-%s.csv", FT_QRES_PREFIX, timestamp);
         ft_exp_out = fopen(outfile_nmbuf, "w");
         fprintf(ft_exp_out, "qnum,time,sum\n");
-
-        char real_buf[32];
-        snprintf(real_buf, 32, "%s-%s.csv", FT_REALLOC_PREFIX, timestamp);
-        ft_real_out = fopen(real_buf, "w");
-        fprintf(ft_real_out, "time\n");
     }
-
-    if (M_DEBUG)
-        puts("Master: listening to queue...");
 
     int qnum = 0;
     while (qnum < FT_NUM_QUERIES) {
@@ -221,6 +225,7 @@ int main(int argc, char *argv[])
                 qnum++;
             }
             else if (request->mtype == mtype_point_query) {
+                heartbeat(); /* ensure slaves can be called */
                 struct timespec start, stop;
                 clock_gettime(CLOCK_REALTIME, &start);
                 vec_t *vec = init_point_query(request->point_vec_id);
@@ -279,6 +284,7 @@ int main(int argc, char *argv[])
     switch (EXPERIMENT_TYPE) {
         case FAULT_TOLERANCE:
             fclose(ft_exp_out);
+            fclose(ft_plan_out);
             fclose(ft_real_out);
             break;
         default:
@@ -298,6 +304,8 @@ double stdev(u_int64_t *items, double avg, int N) {
 
 int starfish(range_query_contents contents)
 {
+    struct timespec start, stop;
+    clock_gettime(CLOCK_REALTIME, &start);
     int i;
     int num_ints_needed = 0;
     for (i = 0; i < contents.num_ranges; i++) {
@@ -355,6 +363,24 @@ int starfish(range_query_contents contents)
         }
         free(machine_vec_ptrs);
     }
+
+    clock_gettime(CLOCK_REALTIME, &stop);
+
+    if (EXPERIMENT_TYPE == FAULT_TOLERANCE) {
+        /* Calculate time difference */
+        int64_t dt_s = stop.tv_sec - start.tv_sec;
+        int64_t dt_ns = stop.tv_nsec - start.tv_nsec;
+
+        /* Adjust if negative nanosecond change */
+        if (dt_ns < 0) {
+            dt_ns += 1e9;
+            dt_s += -1;
+        }
+
+        // Record planning time
+        fprintf(ft_plan_out, "%ld.%09ld\n", dt_s, dt_ns);
+    }
+
     return init_range_query(range_array, contents.num_ranges,
         contents.ops, array_index);
 }

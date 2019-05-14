@@ -185,7 +185,7 @@ int send_vector(slave *slave_1, vec_id_t vec_id, slave *slave_2)
             printf("Result was pointer to NULL...\n");
         if (*res)
             printf("Res: %d\n", *res);
-        exit(0);
+        // exit(0);
         return 1;
     }
     return *res;

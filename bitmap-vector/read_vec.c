@@ -10,6 +10,7 @@
  */
 vec_t *read_vector(char *path)
 {
+
     u_int vector_len = 0;
 
     u_int64_t vector_val[MAX_VECTOR_LEN];
@@ -25,6 +26,7 @@ vec_t *read_vector(char *path)
     /* Read file */
     FILE *fp = fopen(path, "r");
     if (fp == NULL) {
+        puts("Couldn't open vector!");
         return NULL;
     }
     else {

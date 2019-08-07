@@ -1,7 +1,7 @@
 #ifndef DBMS_H
 #define DBMS_H
 
-#define DBMS_DEBUG false
+#define DBMS_DEBUG true
 
 enum {RING_CH, JUMP_CH, STATIC_PART};
 

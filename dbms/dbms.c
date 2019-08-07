@@ -58,7 +58,6 @@ int main(int argc, char *argv[])
 
     /* Destroy message queue. */
     msgctl(msq_id, IPC_RMID, NULL);
-
     return status;
 }
 
@@ -148,7 +147,7 @@ int experiment_fault_tolerance(int msq_id)
             break;
         }
         case RANGE_QUERIES: {
-            snprintf(buf, 64, "%s/qs/range.dat", data_dir);
+            snprintf(buf, 64, "%s/qs/qs2.dat", data_dir);
             break;
         }
         case MIXED_QUERIES: {
@@ -171,7 +170,7 @@ int experiment_fault_tolerance(int msq_id)
     /* Open Query File */
     puts("DBMS: Sending vectors...");
     for (i = 0; i < FT_NUM_VEC; i++) {
-        snprintf(buf, 64, "%s/vecs/v_%d.dat", data_dir, i);
+        snprintf(buf, 64, "%s/vec/v_%d.dat", data_dir, i);
         put_vector(msq_id, i, read_vector(buf));
     }
 
@@ -198,9 +197,11 @@ int experiment_introduce_slaves(int msq_id)
     int i;
     char buf[64];
     for (i = 0; i < FT_NUM_VEC; i++) {
-        snprintf(buf, 64, "../tst_data/vecs/v_%d.dat", i);
+        //snprintf(buf, 64, "../tst_data/vecs/v_%d.dat", i);
+        snprintf(buf, 64, "/root/dbie/dbie-data/tpc/vec/v_%d.dat", i);
         put_vector(msq_id, i, read_vector(buf));
     }
+    puts("Done with vectors");
 
     if (DBMS_DEBUG) puts("DBMS: Adding slaves by address...");
     
@@ -213,6 +214,8 @@ int experiment_introduce_slaves(int msq_id)
     slave_intro(msq_id, addr2);
     slave_intro(msq_id, addr3);
     slave_intro(msq_id, addr4);
+
+    puts("slaves introduced");
 
     master_exit(msq_id);
     return status;
